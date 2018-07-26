@@ -12,6 +12,7 @@ def train_hourglass(options):
 
     :param options: Options for the training, defined above.
     """
+    main(option)
 
 
 
@@ -20,10 +21,11 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise RuntimeException("Need to provide an argument specifing the 'script' to run.")
 
-    # run the appropriate 'script'
+    # get args from command line
     script = sys.argv[1]
-    options = None  # TODO:
+    options = Options().parse()
 
+    # run the appropriate 'script'
     if script == "hourglass":
         # TODO: options object defaults
         train_hourglass(options)

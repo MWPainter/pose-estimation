@@ -28,14 +28,14 @@ Note that we didn't write the code from the other git repos, and will not be mai
 
 ## Data
 
-TODO: describe the process of downloading the data
+TODO: describe the process of downloading the data (incl downloading the 2D and 3D ground truths).
 
 TODO: explain that it needs to be simlinked or copied into the `data` directory.
 
 ## Running the code
 
 ### Training Models
-Models are trained using the following commands
+Models are trained using the following commands:
 
 - `python main.py "hourglass"` Train a stacked hourglass network (RGB image > 2D pose)
     - TODO: `--id` id to use in the saved model
@@ -45,13 +45,15 @@ Models are trained using the following commands
     - TODO: best model will be saved to `./models/hourglass_<id>/best_model`
     - TODO: training log 
 - `python main.py "2d3d"` Train the "3D pose baseline model". (2D pose > 3D pose)
-    - TODO: `--id` id to use in the saved model
-    - TODO: `--input` specifies where the 2D pose estimates input is 
+    - TODO: `--id` id to use in the saved model (default: '0')
+    - TODO: `--input` specifies where the 2D pose estimates input is (default: './data/2d3d/train_2d.pth.tar')
+    - TODO: list all of the options that are provided by the core code + remove lots of options
     - TODO: models will be saved to `./models/hourglass_<id>/chkpoint/...`
     - TODO: final model will be saved to `./models/hourglass_<id>/final_model`
     - TODO: best model will be saved to `./models/hourglass_<id>/best_model`
-    - TODO: training log 
-    - TODO: )
+- The following are options that can be given to ANY of the above commands
+    - TODO: things like `--lr` for the learning rate
+    - TODO: clean up the options.py file
 
 TODO: something with `--output`, where to write the predictions for example
 
