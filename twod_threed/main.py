@@ -15,16 +15,16 @@ import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from opt import Options
-from src.procrustes import get_transformation
-import src.data_process as data_process
-from src import Bar
-import src.utils as utils
-import src.misc as misc
-import src.log as log
+#from opt import Options
+from twod_threed.src.procrustes import get_transformation
+import twod_threed.src.data_process as data_process
+from twod_threed.src import Bar
+import twod_threed.src.utils as utils
+import twod_threed.src.misc as misc
+import twod_threed.src.log as log
 
-from src.model import LinearModel, weight_init
-from src.datasets.human36m import Human36M
+from twod_threed.src.model import LinearModel, weight_init
+from twod_threed.src.datasets.human36m import Human36M
 
 
 def main(opt):
