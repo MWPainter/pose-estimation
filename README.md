@@ -54,6 +54,7 @@ Models are trained using the following commands:
 - The following are options that can be given to ANY of the above commands
     - TODO: things like `--lr` for the learning rate
     - TODO: clean up the options.py file
+    - TODO: organize defaults per script name
 
 TODO: something with `--output`, where to write the predictions for example
 

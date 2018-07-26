@@ -26,16 +26,38 @@ actions = ["all",
            "WalkTogether"]
 
 
+
+defaults = \
+    {
+        "2D3D":
+            {
+                "data_dir": "data/2d3d"
+            },
+
+        "hourglass":
+            {
+                "data_dir": "data/h36m"
+            },
+
+        "":
+            {
+                "data_dir": "data/"
+            },
+    }
+
+
+
 class Options:
-    def __init__(self):
+    def __init__(self, script_id):
         self.parser = argparse.ArgumentParser()
         self.opt = None
+        self.script_id = script_id if script_id is not None else ""
 
     def _initial(self):
         # ===============================================================
         #                     General options
         # ===============================================================
-        self.parser.add_argument('--data_dir',       type=str, default='data/', help='path to dataset')
+        self.parser.add_argument('--data_dir',       type=str, default=defaults[self.script_id]["data_dir"], help='path to dataset')
         self.parser.add_argument('--exp',            type=str, default='test', help='ID of experiment')
         self.parser.add_argument('--ckpt',           type=str, default='checkpoint/', help='path to save checkpoint')
         self.parser.add_argument('--load',           type=str, default='', help='path to load a pretrained checkpoint')
