@@ -27,6 +27,7 @@ actions = ["all",
 
 
 
+# Defaults dictionary to provide different default arguments for different scripts
 defaults = \
     {
         "2d3d":
@@ -92,21 +93,29 @@ class Options:
         self.parser.add_argument('--procrustes',     dest='procrustes', action='store_true', help='use procrustes analysis at testing')
 
     def _print(self):
+        # Pretty prints the options we parses
         print("\n==================Options=================")
         pprint(vars(self.opt), indent=4)
         print("==========================================\n")
 
     def parse(self):
+        # Parse the (known) arguments (with respect to the parser)
         self._initial()
-        self.opt = self.parser.parse_args()
-        # do some pre-check
+        self.opt, _ = self.parser.parse_known_args()
+
+        # Perform some validation on input
         ckpt = os.path.join(self.opt.ckpt, self.opt.exp)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)
+
         if self.opt.load:
             if not os.path.isfile(self.opt.load):
                 print ("{} is not found".format(self.opt.load))
+
+        # Set internal variables
         self.opt.is_train = False if self.opt.test else True
         self.opt.ckpt = ckpt
+
+        # PPrint options parsed (sanity check for user)
         self._print()
         return self.opt
