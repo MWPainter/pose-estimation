@@ -1,4 +1,10 @@
+# Future/Compatability with Python2 and Python3
+from __future__ import print_function, absolute_import, division
+
+# Relative imports
 from twod_threed import main as twod_threed_main
+
+# Absolute imports
 import sys
 from options import Options
 import os
@@ -29,7 +35,7 @@ def train_twod_to_threed(options):
 
     :param options: Options for the training, defined above.
     """
-    twod_threed_main(option)
+    twod_threed_main(options)
 
 
 
