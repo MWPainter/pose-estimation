@@ -31,7 +31,7 @@ defaults = \
     {
         "2D3D":
             {
-                "data_dir": "data/2d3d"
+                "data_dir": "data/2d3d_h36m"
             },
 
         "hourglass":
