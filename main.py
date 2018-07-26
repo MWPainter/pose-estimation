@@ -45,6 +45,6 @@ if __name__ == "__main__":
     if script == "hourglass":
         # TODO: options object defaults
         train_hourglass(options)
-    elif script == "2D3D":
+    elif script == "2d3d":
         # TODO: options ovject defaults
         train_twod_to_threed(options)
