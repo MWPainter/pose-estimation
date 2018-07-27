@@ -31,6 +31,7 @@ somewhat documents the other repositories in how they are used.
 ## Changes made to the pre-existing repos
 ### Stacked Hourglass code
 - Changes to parse_args options, for consistency
+- Added `stacked_hourglass/utils/run.py` which contains code to load a trained model, run predictions on some data and save those predictions.
 
 ### 2D to 3D code
 - Changes to parse_args options, for consistency
@@ -60,14 +61,14 @@ TODO: explain that it needs to be simlinked or copied into the `data` directory.
 ### Training Models
 Models are trained using the following commands:
 
-- `python main.py "hourglass"` Train a stacked hourglass network (RGB image > 2D pose)
+- `python train.py "hourglass"` Train a stacked hourglass network (RGB image > 2D pose)
     - Prereqs: MPII dataset downloaded as above
     - Default `--input_dir` specifies where the input images of MPII are (default: `./data/hourglass/images`)
     - Example usage (assuming that data has been setup as above) `python main.py hourglass --exp test`
-- `python main.py "2d3d"` Train the "3D pose baseline model". (2D pose > 3D pose)
+- `python train.py "2d3d"` Train the "3D pose baseline model". (2D pose > 3D pose)
     - Prereqs: Human3.6m 2D and 3D pose data downloaded as above
     - Default `--input_dir` specifies where the 2D pose estimates input is (default: `./data/2d3d/train_2d.pth.tar`)
-- `python main.py "stitched"` Train the "Stitched" model
+- `python train.py "stitched"` Train the "Stitched" model
     - `--load_hourglass` Specify a checkpoint to load the hourglass model from (if none specified, then we randomly initialize the network) 
     - `--load_2d3d` Specify a checkpoint to load the 2d3d model from (if none specified, then we randomly initialize the network)
     - `--load` Spefies a checkpoint for the **entire** stitched network to load from 
@@ -82,3 +83,12 @@ Models are trained using the following commands:
 TODO: explain where models are saved and the file format
 
 TODO: continue explaining params. For example, how to specify the checkpoints for each of the models in the 'stitched' model, and --lr. (Have one per **useful** option in options.py)
+
+
+### Running Models
+Saved models can be run on a dataset to provide predictions:
+
+- `python run.py "hourglass"` Runs the stacked hourglass network to get 2D pose predictions from 
+    - `--load` required, filename for the network checkpoint to be used
+    - `--input_dir` required, the directory for the images to run the network on
+    - `--output_dir` the directory to store the predictions at (in a PyTorch dataset)
