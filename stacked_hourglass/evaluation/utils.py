@@ -35,7 +35,7 @@ def visualize(oriImg, points, pa):
 
     from time import gmtime, strftime
     import os
-    directory = 'data/mpii/result/test_images'
+    directory = 'stacked_hourglass/data/mpii/result/test_images'
     if not os.path.exists(directory):
         os.makedirs(directory)
 
