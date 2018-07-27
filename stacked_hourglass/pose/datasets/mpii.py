@@ -39,7 +39,7 @@ class Mpii(data.Dataset):
         self.mean, self.std = self._compute_mean()
 
     def _compute_mean(self):
-        meanstd_file = './data/mpii/mean.pth.tar'
+        meanstd_file = './stacked_hourglass/data/mpii/mean.pth.tar'
         if isfile(meanstd_file):
             meanstd = torch.load(meanstd_file)
         else:

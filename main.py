@@ -3,6 +3,7 @@ from __future__ import print_function, absolute_import, division
 
 # Relative imports
 from twod_threed import main as twod_threed_main
+from stacked_hourglass import mpii_main as hourglass_main
 
 # Absolute imports
 import sys
@@ -14,14 +15,17 @@ import os
 def train_hourglass(options):
     """
     Script to create a stacked hourglass network, and train it from scratch to make 2D pose estimations.
+    Options were taken mostly from from the "twod_threed" code. We've merged the options to make it easier.
+    We add a couple arguments here, without specifying the option to change them, as in this context it doesn't
+    make sense to allow them to be changed.
 
-    Options:
-    --id: the id of the network we are training (so we can train multiple vesions of the same network without clobbering)
-    TODO: finish this list
+    The default options for the hourglass code can be found at the bottom of ./stacked_hourglass/example/mpii.py.
 
-    :param options: Options for the training, defined above.
+    :param options: Options for the training, defined in options.py. (Including defaults).
     """
-    raise NotImplementedError()
+    options.arch = "hg"
+    options.workers = 1
+    hourglass_main(options)
 
 
 
@@ -29,11 +33,7 @@ def train_twod_to_threed(options):
     """
     Script to create a stacked hourglass network, and train it from scratch to make 2D pose estimations.
 
-    Options:
-    --id: the id of the network we are training (so we can train multiple vesions of the same network without clobbering)
-    TODO: finish this list
-
-    :param options: Options for the training, defined above.
+    :param options: Options for the training, defined in options.py. (Including defaults).
     """
     twod_threed_main(options)
 
@@ -50,8 +50,8 @@ if __name__ == "__main__":
 
     # run the appropriate 'script'
     if script == "hourglass":
-        # TODO: options object defaults
         train_hourglass(options)
     elif script == "2d3d":
-        # TODO: options ovject defaults
         train_twod_to_threed(options)
+    elif script == "stitched":
+        raise NotImplementedError()

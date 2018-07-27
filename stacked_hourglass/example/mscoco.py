@@ -53,19 +53,19 @@ def main(args):
 
     # optionally resume from a checkpoint
     title = 'MSCOCO-' + args.arch
-    if args.resume:
-        if isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
+    if args.load:
+        if isfile(args.load):
+            print("=> loading checkpoint '{}'".format(args.load))
+            checkpoint = torch.load(args.load)
             args.start_epoch = checkpoint['epoch']
             best_acc = checkpoint['best_acc']
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+                  .format(args.load, checkpoint['epoch']))
             logger = Logger(join(args.checkpoint, 'log.txt'), title=title, resume=True)
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            print("=> no checkpoint found at '{}'".format(args.load))
     else:        
         logger = Logger(join(args.checkpoint, 'log.txt'), title=title)
         logger.set_names(['Epoch', 'LR', 'Train Loss', 'Val Loss', 'Train Acc', 'Val Acc'])

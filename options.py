@@ -196,9 +196,9 @@ class Options:
         self.opt, _ = self.parser.parse_known_args()
 
         # Perform some validation on input
-        ckpt = os.path.join(self.opt.ckpt, self.opt.exp)
-        if not os.path.isdir(ckpt):
-            os.makedirs(ckpt)
+        checkpoint_dir = os.path.join(self.opt.checkpoint_dir, self.opt.exp)
+        if not os.path.isdir(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
 
         if self.opt.load:
             if not os.path.isfile(self.opt.load):
@@ -206,7 +206,7 @@ class Options:
 
         # Set internal variables
         self.opt.is_train = False if self.opt.test else True
-        self.opt.ckpt = ckpt
+        self.opt.checkpoint_dir = checkpoint_dir
 
         # PPrint options parsed (sanity check for user)
         self._print()

@@ -34,7 +34,7 @@ def main(opt):
     lr_now = opt.lr
 
     # save options
-    log.save_options(opt, opt.ckpt)
+    log.save_options(opt, opt.checkpoint_dir)
 
     # create model
     print(">>> creating model")
@@ -57,9 +57,9 @@ def main(opt):
         optimizer.load_state_dict(ckpt['optimizer'])
         print(">>> ckpt loaded (epoch: {} | err: {})".format(start_epoch, err_best))
     if opt.resume:
-        logger = log.Logger(os.path.join(opt.ckpt, 'log.txt'), resume=True)
+        logger = log.Logger(os.path.join(opt.checkpoint_dir, 'log.txt'), resume=True)
     else:
-        logger = log.Logger(os.path.join(opt.ckpt, 'log.txt'))
+        logger = log.Logger(os.path.join(opt.checkpoint_dir, 'log.txt'))
         logger.set_names(['epoch', 'lr', 'loss_train', 'loss_test', 'err_test'])
 
     # list of action(s)
@@ -80,7 +80,7 @@ def main(opt):
             print (">>> TEST on _{}_".format(action))
             test_loader = DataLoader(
                 dataset=Human36M(actions=action, data_path=opt.data_dir, use_hg=opt.use_hg, is_train=False),
-                batch_size=opt.test_batch,
+                batch_size=opt.test_batch_size,
                 shuffle=False,
                 num_workers=opt.job,
                 pin_memory=True)
@@ -98,13 +98,13 @@ def main(opt):
     # load dadasets for training
     test_loader = DataLoader(
         dataset=Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg, is_train=False),
-        batch_size=opt.test_batch,
+        batch_size=opt.test_batch_size,
         shuffle=False,
         num_workers=opt.job,
         pin_memory=True)
     train_loader = DataLoader(
         dataset=Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg),
-        batch_size=opt.train_batch,
+        batch_size=opt.train_batch_size,
         shuffle=True,
         num_workers=opt.job,
         pin_memory=True)
@@ -136,7 +136,7 @@ def main(opt):
                            'err': err_best,
                            'state_dict': model.state_dict(),
                            'optimizer': optimizer.state_dict()},
-                          ckpt_path=opt.ckpt,
+                          ckpt_path=opt.checkpoint_dir,
                           is_best=True)
         else:
             log.save_ckpt({'epoch': epoch + 1,
@@ -145,7 +145,7 @@ def main(opt):
                            'err': err_best,
                            'state_dict': model.state_dict(),
                            'optimizer': optimizer.state_dict()},
-                          ckpt_path=opt.ckpt,
+                          ckpt_path=opt.checkpoint_dir,
                           is_best=False)
 
     logger.close()

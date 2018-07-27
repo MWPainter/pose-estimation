@@ -34,8 +34,8 @@ def main(args):
     global best_acc
 
     # create checkpoint dir
-    if not isdir(args.checkpoint):
-        mkdir_p(args.checkpoint)
+    if not isdir(args.checkpoint_dir):
+        mkdir_p(args.checkpoint_dir)
 
     # create model
     print("==> creating model '{}', stacks={}, blocks={}".format(args.arch, args.stacks, args.blocks))
@@ -53,21 +53,21 @@ def main(args):
 
     # optionally resume from a checkpoint
     title = 'mpii-' + args.arch
-    if args.resume:
-        if isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
+    if args.load:
+        if isfile(args.load):
+            print("=> loading checkpoint '{}'".format(args.load))
+            checkpoint = torch.load(args.load)
             args.start_epoch = checkpoint['epoch']
             best_acc = checkpoint['best_acc']
             model.load_state_dict(checkpoint['state_dict'])
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
-            logger = Logger(join(args.checkpoint, 'log.txt'), title=title, resume=True)
+                  .format(args.load, checkpoint['epoch']))
+            logger = Logger(join(args.checkpoint_dir, 'log.txt'), title=title, resume=True)
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            print("=> no checkpoint found at '{}'".format(args.load))
     else:        
-        logger = Logger(join(args.checkpoint, 'log.txt'), title=title)
+        logger = Logger(join(args.checkpoint_dir, 'log.txt'), title=title)
         logger.set_names(['Epoch', 'LR', 'Train Loss', 'Val Loss', 'Train Acc', 'Val Acc'])
 
     cudnn.benchmark = True
@@ -75,21 +75,21 @@ def main(args):
 
     # Data loading code
     train_loader = torch.utils.data.DataLoader(
-        datasets.Mpii('data/mpii/mpii_annotations.json', 'data/mpii/images',
+        datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
                       sigma=args.sigma, label_type=args.label_type),
-        batch_size=args.train_batch, shuffle=True,
+        batch_size=args.train_batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
     
     val_loader = torch.utils.data.DataLoader(
-        datasets.Mpii('data/mpii/mpii_annotations.json', 'data/mpii/images',
+        datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
                       sigma=args.sigma, label_type=args.label_type, train=False),
-        batch_size=args.test_batch, shuffle=False,
+        batch_size=args.test_batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
     if args.evaluate:
         print('\nEvaluation only') 
         loss, acc, predictions = validate(val_loader, model, criterion, args.num_classes, args.debug, args.flip)
-        save_pred(predictions, checkpoint=args.checkpoint)
+        save_pred(predictions, checkpoint=args.checkpoint_dir)
         return
 
     lr = args.lr
@@ -121,11 +121,11 @@ def main(args):
             'state_dict': model.state_dict(),
             'best_acc': best_acc,
             'optimizer' : optimizer.state_dict(),
-        }, predictions, is_best, checkpoint=args.checkpoint)
+        }, predictions, is_best, checkpoint=args.checkpoint_dir)
 
     logger.close()
     logger.plot(['Train Acc', 'Val Acc'])
-    savefig(os.path.join(args.checkpoint, 'log.eps'))
+    savefig(os.path.join(args.checkpoint_dir, 'log.eps'))
 
 
 def train(train_loader, model, criterion, optimizer, debug=False, flip=True):

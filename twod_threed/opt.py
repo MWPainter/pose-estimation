@@ -78,13 +78,13 @@ class Options:
         self._initial()
         self.opt = self.parser.parse_args()
         # do some pre-check
-        ckpt = os.path.join(self.opt.ckpt, self.opt.exp)
+        ckpt = os.path.join(self.opt.checkpoint_dir, self.opt.exp)
         if not os.path.isdir(ckpt):
             os.makedirs(ckpt)
         if self.opt.load:
             if not os.path.isfile(self.opt.load):
                 print ("{} is not found".format(self.opt.load))
         self.opt.is_train = False if self.opt.test else True
-        self.opt.ckpt = ckpt
+        self.opt.checkpoint_dir = ckpt
         self._print()
         return self.opt
