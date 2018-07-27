@@ -9,9 +9,9 @@ import math
 import torch
 import torch.utils.data as data
 
-from pose.utils.osutils import *
-from pose.utils.imutils import *
-from pose.utils.transforms import *
+from stacked_hourglass.pose.utils.osutils import *
+from stacked_hourglass.pose.utils.imutils import *
+from stacked_hourglass.pose.utils.transforms import *
 
 
 class LSP(data.Dataset):

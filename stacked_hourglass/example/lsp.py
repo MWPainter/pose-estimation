@@ -11,15 +11,15 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torchvision.datasets as datasets
 
-from pose import Bar
-from pose.utils.logger import Logger, savefig
-from pose.utils.evaluation import accuracy, AverageMeter, final_preds
-from pose.utils.misc import save_checkpoint, save_pred, adjust_learning_rate
-from pose.utils.osutils import mkdir_p, isfile, isdir, join
-from pose.utils.imutils import batch_with_heatmap
-from pose.utils.transforms import fliplr, flip_back
-import pose.models as models
-import pose.datasets as datasets
+from stacked_hourglass.pose import Bar
+from stacked_hourglass.pose.utils.logger import Logger, savefig
+from stacked_hourglass.pose.utils.evaluation import accuracy, AverageMeter, final_preds
+from stacked_hourglass.pose.utils.misc import save_checkpoint, save_pred, adjust_learning_rate
+from stacked_hourglass.pose.utils.osutils import mkdir_p, isfile, isdir, join
+from stacked_hourglass.pose.utils.imutils import batch_with_heatmap
+from stacked_hourglass.pose.utils.transforms import fliplr, flip_back
+import stacked_hourglass.pose.models as models
+import stacked_hourglass.pose.datasets as datasets
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
