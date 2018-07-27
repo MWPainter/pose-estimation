@@ -120,43 +120,43 @@ class Options:
         # ===============================================================
         self.parser.add_argument('--stacks', default=8, type=int, metavar='N',
                             help='Number of hourglasses to stack')
-        parser.add_argument('--features', default=256, type=int, metavar='N',
+        self.parser.add_argument('--features', default=256, type=int, metavar='N',
                             help='Number of features in the hourglass')
-        parser.add_argument('--blocks', default=1, type=int, metavar='N',
+        self.parser.add_argument('--blocks', default=1, type=int, metavar='N',
                             help='Number of residual modules at each location in the hourglass')
-        parser.add_argument('--num-classes', default=16, type=int, metavar='N',
+        self.parser.add_argument('--num-classes', default=16, type=int, metavar='N',
                             help='Number of keypoints')
 
 
         # ===============================================================
         #                     Hourglass training options
         # ===============================================================
-        parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
+        self.parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                             help='manual epoch number (useful on restarts)')
-        parser.add_argument('--momentum', default=0, type=float, metavar='M',
+        self.parser.add_argument('--momentum', default=0, type=float, metavar='M',
                             help='momentum')
-        parser.add_argument('--weight-decay', '--wd', default=0, type=float,
+        self.parser.add_argument('--weight-decay', '--wd', default=0, type=float,
                             metavar='W', help='weight decay (default: 0)')
-        parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
+        self.parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                             help='evaluate model on validation set')
-        parser.add_argument('-d', '--debug', dest='debug', action='store_true',
+        self.parser.add_argument('-d', '--debug', dest='debug', action='store_true',
                             help='show intermediate results')
 
         # ===============================================================
         #                     Hourglass data processing options
         # ===============================================================
-        parser.add_argument('-f', '--flip', dest='flip', action='store_true',
+        self.parser.add_argument('-f', '--flip', dest='flip', action='store_true',
                             help='flip the input during validation')
-        parser.add_argument('--sigma', type=float, default=1,
+        self.parser.add_argument('--sigma', type=float, default=1,
                             help='Groundtruth Gaussian sigma.')
-        parser.add_argument('--sigma-decay', type=float, default=0,
+        self.parser.add_argument('--sigma-decay', type=float, default=0,
                             help='Sigma decay rate for each epoch.')
-        parser.add_argument('--label-type', metavar='LABELTYPE', default='Gaussian',
+        self.parser.add_argument('--label-type', metavar='LABELTYPE', default='Gaussian',
                             choices=['Gaussian', 'Cauchy'],
                             help='Labelmap dist type: (default=Gaussian)')
-        parser.add_argument('--schedule', type=int, nargs='+', default=[60, 90],
+        self.parser.add_argument('--schedule', type=int, nargs='+', default=[60, 90],
                             help='Decrease learning rate at these epochs.')
-        parser.add_argument('--gamma', type=float, default=0.1,
+        self.parser.add_argument('--gamma', type=float, default=0.1,
                             help='LR is multiplied by gamma on schedule.')
 
         # ===============================================================
