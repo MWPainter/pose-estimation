@@ -37,6 +37,20 @@ somewhat documents the other repositories in how they are used.
 
 ## Data
 
+### MPII dataset
+Download the images:
+`wget https://datasets.d2.mpi-inf.mpg.de/andriluka14cvpr/mpii_human_pose_v1.tar.gz`
+
+Soft link the data to `<REPO_DIR>/stacked_hourglass/data/mpii/images` using the command: `ln -s <MPII_DATA_DIR>/images <REPO_DIR>/stacked_hourglass/data/mpii/images`.
+
+
+###Human3.6m 2D and 3D pose data
+TODO
+
+### Human3.6m Dataset
+TODO
+
+### TODO:
 TODO: describe the process of downloading the data (incl downloading the 2D and 3D ground truths).
 
 TODO: explain that it needs to be simlinked or copied into the `data` directory.
@@ -47,11 +61,13 @@ TODO: explain that it needs to be simlinked or copied into the `data` directory.
 Models are trained using the following commands:
 
 - `python main.py "hourglass"` Train a stacked hourglass network (RGB image > 2D pose)
+    - Prereqs: MPII dataset downloaded as above
     - Default `--input_dir` specifies where the input images of MPII are (default: `./data/hourglass/images`)
     - Example usage (assuming that data has been setup as above) `python main.py hourglass --exp test`
 - `python main.py "2d3d"` Train the "3D pose baseline model". (2D pose > 3D pose)
+    - Prereqs: Human3.6m 2D and 3D pose data downloaded as above
     - Default `--input_dir` specifies where the 2D pose estimates input is (default: `./data/2d3d/train_2d.pth.tar`)
-- `python main.py "stitched"` Train the "Stitched" model.
+- `python main.py "stitched"` Train the "Stitched" model
     - `--load_hourglass` Specify a checkpoint to load the hourglass model from (if none specified, then we randomly initialize the network) 
     - `--load_2d3d` Specify a checkpoint to load the 2d3d model from (if none specified, then we randomly initialize the network)
     - `--load` Spefies a checkpoint for the **entire** stitched network to load from 
