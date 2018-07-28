@@ -2,3 +2,10 @@
 from example.mpii import main as mpii_main
 from example.lsp import main as lsp_main
 from example.mscoco import main as mscoco_main
+from pose.utils.run import run
+
+from . import pose
+# from . import miscs
+from . import example
+# from . import evaluation
+# from . import data

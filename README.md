@@ -63,18 +63,18 @@ Models are trained using the following commands:
 
 - `python train.py "hourglass"` Train a stacked hourglass network (RGB image > 2D pose)
     - Prereqs: MPII dataset downloaded as above
-    - Default `--input_dir` specifies where the input images of MPII are (default: `./data/hourglass/images`)
+    - Default `--data_dir` specifies where the input images of MPII are (default: `./data/hourglass/images`)
     - Example usage (assuming that data has been setup as above) `python main.py hourglass --exp test`
 - `python train.py "2d3d"` Train the "3D pose baseline model". (2D pose > 3D pose)
     - Prereqs: Human3.6m 2D and 3D pose data downloaded as above
-    - Default `--input_dir` specifies where the 2D pose estimates input is (default: `./data/2d3d/train_2d.pth.tar`)
+    - Default `--data_dir` specifies where the 2D pose estimates input is (default: `./data/2d3d/train_2d.pth.tar`)
 - `python train.py "stitched"` Train the "Stitched" model
     - `--load_hourglass` Specify a checkpoint to load the hourglass model from (if none specified, then we randomly initialize the network) 
     - `--load_2d3d` Specify a checkpoint to load the 2d3d model from (if none specified, then we randomly initialize the network)
     - `--load` Spefies a checkpoint for the **entire** stitched network to load from 
 - The following are options that can be given to ANY of the above commands
     - `--exp` Provides an experiment id (string) (default: '0') 
-    - `--input_dir` Specify an input dataset (default: depends on script above)
+    - `--data_dir` Specify an input dataset (default: depends on script above)
     - `--checkpoint_dir` Specify where model checkpoints are stored (default: `model_checkpoints`)
     - `--output_dir` Specify where to put the output (will be saved in a folder `<output_dir>/<script_<exp id>`)
     - `--load` Specify a checkpoint to load training from 
@@ -90,5 +90,5 @@ Saved models can be run on a dataset to provide predictions:
 
 - `python run.py "hourglass"` Runs the stacked hourglass network to get 2D pose predictions from 
     - `--load` required, filename for the network checkpoint to be used
-    - `--input_dir` required, the directory for the images to run the network on
+    - `--data_dir` required, the directory for the images to run the network on
     - `--output_dir` the directory to store the predictions at (in a PyTorch dataset)
