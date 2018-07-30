@@ -73,6 +73,13 @@ class LinearModel(nn.Module):
         self.dropout = nn.Dropout(self.p_dropout)
 
     def forward(self, x):
+        # flatten if input is (batch_size, num_joints, 2) to (batch_size, 2 * num_joints)
+        # if there are any errors below, then the input isn't as expected
+        flatten = (x.dim() == 3)
+        if flatten:
+            batch_size, num_joints, _ = x.size()
+            x = x.view((batch_size, 2*num_joints))
+
         # pre-processing
         y = self.w1(x)
         y = self.batch_norm1(y)
@@ -84,5 +91,9 @@ class LinearModel(nn.Module):
             y = self.linear_stages[i](y)
 
         y = self.w2(y)
+
+        # Unflatten
+        if flatten:
+            y.view((batch_size, num_joints, 3))
 
         return y
