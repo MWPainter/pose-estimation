@@ -35,8 +35,8 @@ def run(options):
 
     # Run
     model = load_model(model_file)
-    dataset = run_model(model, data_input_dir)
-    save_preds(dataset, data_output_dir, process_as_video)
+    dataset = run_model(model, data_input_dir, process_as_video)
+    save_preds(dataset, data_output_dir)
 
 
 
@@ -78,7 +78,7 @@ def run_model(model, data_input_dir, process_as_video):
     for key in dataset:
         input_tensor = torch.Tensor(dataset[key])
 
-        # TODO: remove this (temporarily dealing with a bug where we output shape (1,16,2) rather than (16,2) in run.py "hourglass"
+        # TODO: remove this (temporarily dealing with an old0 bug where we output shape (1,16,2) rather than (16,2) in run.py "hourglass"
         input_tensor = torch.squeeze(input_tensor)
 
         if process_as_video:
