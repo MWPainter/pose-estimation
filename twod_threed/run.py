@@ -22,7 +22,8 @@ def run(options):
     Important options params:
     options.load: The file for the saved model
     options.data_dir: The input directory for data (2D poses) to pass through the network
-    options._output_dir: The directory to store output predictions
+    options.output_dir: The directory to store output predictions
+    options.process_as_video: Whether to process the data input as a video, and then output it as a video too
 
     :param options: The options passed in by command line
     """
@@ -30,11 +31,12 @@ def run(options):
     model_file = options.load
     data_input_dir = options.data_dir
     data_output_dir = options.output_dir
+    process_as_video = options.process_as_video
 
     # Run
     model = load_model(model_file)
     dataset = run_model(model, data_input_dir)
-    save_preds(dataset, data_output_dir)
+    save_preds(dataset, data_output_dir, process_as_video)
 
 
 
@@ -58,27 +60,31 @@ def load_model(model_file):
 
 
 
-def run_model(model, data_input_dir):
+def run_model(model, data_input_dir, process_as_video):
     """
     Run a trained model on an entire dataset
 
     :param model: PyTorch nn.Module object for the trained Stacked Hourglass network
     :param data_input_dir: Directory for the dataset to run network on
+    :param process_as_video: If the data input is a video, and should be output as a 'video' too
     :return: PyTorch Dataset object of 2D pose predictions
     """
     # Load in the dictionary/dataset + make a blank dict for 3D pose predictions
     dataset = torch.load(data_input_dir)
     predictions = {}
 
+
     # Loop through all keys in dataset. Handle single images by unsqeezing and squeezing to simulate a "batch"
     for key in dataset:
         input_tensor = torch.Tensor(dataset[key])
-        if input_tensor.dim() == 2:
+
+        # TODO: remove this (temporarily dealing with a bug where we output shape (1,16,2) rather than (16,2) in run.py "hourglass"
+        input_tensor = torch.squeeze(input_tensor)
+
+        if process_as_video:
             predictions[key] = run_model_video(model, input_tensor)
-        elif input_tensor.dim() == 1:
-            predictions[key] = run_model_single_image(model, input_tensor)
         else:
-            raise Exception("Incorrect format input for network.")
+            predictions[key] = run_model_single_image(model, input_tensor)
 
     return predictions
 

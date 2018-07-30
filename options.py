@@ -103,6 +103,8 @@ class Options:
 
         self.parser.add_argument('--action',         type=str, default='All', choices=actions, help='All for all actions')
 
+        self.parser.add_argument('--process_as_video', dest='process_as_video', action='store_true', help='Process videos when using run.py with a network that operates on single frames')
+
         # ===============================================================
         #                     General training options
         # ===============================================================

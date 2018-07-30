@@ -92,11 +92,14 @@ def run_model(model, data_input_dir, args):
         inputs, _, meta = mpii_dataset[i]
         filename = os.path.join(mpii_dataset.img_folder, mpii_dataset.anno[mpii_dataset.train[i]]['img_paths'])
 
-        # Compute and store[ the prediction (unsqueeze input to make a batch size of one)
+        # Compute and store the prediction (unsqueeze input to make a batch size of one)
         input_var = torch.autograd.Variable(inputs.unsqueeze(0).cuda(), volatile=True)
         output = model(input_var)
         score_map = output[-1].data.cpu()
-        predictions[filename] = final_preds(score_map, [meta['center']], [meta['scale']], [64, 64])
+        joint_preds = final_preds(score_map, [meta['center']], [meta['scale']], [64, 64])
+
+        # Squeeze output to remove the phantom batch size + put into dataset
+        predictions[filename] = joint_preds.view(joint_preds.size()[1:])
 
     return predictions
 

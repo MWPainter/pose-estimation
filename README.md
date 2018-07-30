@@ -69,15 +69,15 @@ Models are trained using the following commands:
     - Prereqs: Human3.6m 2D and 3D pose data downloaded as above
     - Default `--data_dir` specifies where the 2D pose estimates input is (default: `./data/2d3d/train_2d.pth.tar`)
 - `python train.py "stitched"` Train the "Stitched" model
-    - `--load_hourglass` Specify a checkpoint to load the hourglass model from (if none specified, then we randomly initialize the network) 
-    - `--load_2d3d` Specify a checkpoint to load the 2d3d model from (if none specified, then we randomly initialize the network)
-    - `--load` Spefies a checkpoint for the **entire** stitched network to load from 
+    - `--load_hourglass <model_dir>` Specify a checkpoint to load the hourglass model from (if none specified, then we randomly initialize the network) 
+    - `--load_2d3d <model_dir>` Specify a checkpoint to load the 2d3d model from (if none specified, then we randomly initialize the network)
+    - `--load <model_dir>` Spefies a checkpoint for the **entire** stitched network to load from 
 - The following are options that can be given to ANY of the above commands
-    - `--exp` Provides an experiment id (string) (default: '0') 
-    - `--data_dir` Specify an input dataset (default: depends on script above)
-    - `--checkpoint_dir` Specify where model checkpoints are stored (default: `model_checkpoints`)
-    - `--output_dir` Specify where to put the output (will be saved in a folder `<output_dir>/<script_<exp id>`)
-    - `--load` Specify a checkpoint to load training from 
+    - `--exp <id_str>` Provides an experiment id to append to the name of the output file/folder (string) (default: '0') 
+    - `--data_dir <data_dir>` Specify an input dataset (default: depends on script above)
+    - `--checkpoint_dir <model_dir>` Specify where model checkpoints are stored (default: `model_checkpoints`)
+    - `--output_dir <data_dir>` Specify where to put the output (will be saved in a folder `<output_dir>/<script_<exp id>`)
+    - `--load <model_dir>` Specify a checkpoint to load training from 
 
 
 TODO: explain where models are saved and the file format
@@ -89,6 +89,7 @@ TODO: continue explaining params. For example, how to specify the checkpoints fo
 Saved models can be run on a dataset to provide predictions:
 
 - `python run.py "hourglass"` Runs the stacked hourglass network to get 2D pose predictions from 
-    - `--load` required, filename for the network checkpoint to be used
-    - `--data_dir` required, the directory for the images to run the network on
-    - `--output_dir` the directory to store the predictions at (in a PyTorch dataset)
+    - `--load <model_dir>` required, filename for the network checkpoint to be used
+    - `--data_dir <data_dir>` required, the directory for the images to run the network on
+    - `--output_dir <data_dir>` the directory to store the predictions at (in a PyTorch dataset)
+    - `--process_as_video` Process videos when using run.py with a network that operates on single frames
