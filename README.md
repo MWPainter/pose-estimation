@@ -35,6 +35,9 @@ somewhat documents the other repositories in how they are used.
 
 ### 2D to 3D code
 - Changes to parse_args options, for consistency
+- Added processing to handle input shapes (batch_size, num_joint, 2) rather than just (batch_size, 2*num_joints). In 
+    such a case, output is of shape (batch_size, num_joints, 3). Changes are found in `twod_threed/src/model.py`'s 
+    forward function. 
 
 ## Data
 
