@@ -66,7 +66,7 @@ def load_model_and_dataset(model_file, data_input_dir, args):
 
     # create the dataset, NOT in train mode, and load the mean and stddev (if not a pre-trained model)
     dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type, train=False)
+                        sigma=args.sigma, label_type=args.label_type, augment_data=False)
     if 'mean' in checkpoint and 'stddev' in checkpoint:
         dataset.set_mean_stddev(checkpoint['mean'], checkpoint['stddev'])
 

@@ -15,8 +15,8 @@ from stacked_hourglass.pose.utils.transforms import *
 
 
 class Mpii(data.Dataset):
-    def __init__(self, jsonfile, img_folder, inp_res=256, out_res=64, train=True, sigma=1,
-                 scale_factor=0.25, rot_factor=30, label_type='Gaussian', mean=None, stddev=None):
+    def __init__(self, jsonfile, img_folder, inp_res=256, out_res=64, train=True, sigma=1, scale_factor=0.25, \
+                 rot_factor=30, label_type='Gaussian', mean=None, stddev=None, augment_data=True):
         self.img_folder = img_folder    # root image folders
         self.is_train = train           # training set or test set
         self.inp_res = inp_res
@@ -25,6 +25,7 @@ class Mpii(data.Dataset):
         self.scale_factor = scale_factor
         self.rot_factor = rot_factor
         self.label_type = label_type
+        self.augment_data = augment_data
 
         # create train/val split
         with open(jsonfile) as anno_file:   
@@ -102,7 +103,7 @@ class Mpii(data.Dataset):
         img = load_image(img_path)  # CxHxW
 
         r = 0
-        if self.is_train:
+        if self.augment_data:
             s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]
             r = torch.randn(1).mul_(rf).clamp(-2*rf, 2*rf)[0] if random.random() <= 0.6 else 0
 

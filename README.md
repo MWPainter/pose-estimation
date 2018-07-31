@@ -37,6 +37,9 @@ documents the nested repositories via how they are used. (README.md files for th
 - Updated the MPII dataset to be able to set and get the mean and stddev for data normalization. (Otherwise we can't train 
     multiple models with different datasets correctly). Changes found in dataset `stacked_hourglass/pose/dataset/mpii.py` 
     and the training loop in `stacked_hourglass/example/mpii.py`
+- Added option for data augmentation in dataset, independent of the "train" flag. (Sometimes we would like to turn  off 
+    the data augmentation on the train set. Train flag is necessary as MPII anotations are all in a single file). Dataset 
+    class found in `stacked_hourglass/pose/dataset/mpii.py`.
 
 ### 2D to 3D code
 - Original repo from <https://github.com/weigq/3d_pose_baseline_pytorch>
