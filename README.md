@@ -30,16 +30,23 @@ documents the nested repositories via how they are used. (README.md files for th
 
 ## Changes made to the pre-existing repos
 ### Stacked Hourglass code
+- Original repo from <https://github.com/bearpaw/pytorch-pose>
 - Changes to parse_args options, for consistency
 - Added `stacked_hourglass/utils/run.py` which contains code to load a trained model, run predictions on some data and save those predictions.
 - Cannabilized the `visualize` function in `stacked_hourglass/evaluation/utils.py` to provide a clean visualization of a 2d pose overlay on some image.
 
+
 ### 2D to 3D code
+- Original repo from <https://github.com/weigq/3d_pose_baseline_pytorch>
 - Changes to parse_args options, for consistency
 - Added `twod_threed/run.py` which contains code to load a trained model, run predictions on some data and save those predictions.
 - Added processing to handle input shapes (batch_size, num_joint, 2) rather than just (batch_size, 2*num_joints). In 
     such a case, output is of shape (batch_size, num_joints, 3). Changes are found in `twod_threed/src/model.py`'s 
     forward function. 
+- Used vizualisation code from the original tensorflow implmentation: <https://github.com/una-dinosauria/3d-pose-baseline>.
+    - Copied files to `twod_threed/src/viz.py` and `twod_threed/src/data_utils.py`
+    - Both files are edited to work directly out of stacked hourglass/MPII format of joint co-ordinates.
+    - Renamed `camera.py` to `camaras.py` in `twod_threed/src` to be consistent with files copied from the tensorflow implementation.
 
 ## Data
 
