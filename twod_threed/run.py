@@ -73,7 +73,6 @@ def run_model(model, data_input_dir, process_as_video):
     dataset = torch.load(data_input_dir)
     predictions = {}
 
-
     # Loop through all keys in dataset. Handle single images by unsqeezing and squeezing to simulate a "batch"
     for key in dataset:
         input_tensor = torch.Tensor(dataset[key])
@@ -115,7 +114,7 @@ def run_model_single_image(model, input_tensor):
     :return: The 3D join coords predicted by the network
     """
     input_tensor = input_tensor.unsqueeze(0).cuda()
-    return model(input_tensor)
+    return model(input_tensor).cpu()
 
 
 
