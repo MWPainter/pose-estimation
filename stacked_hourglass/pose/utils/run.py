@@ -40,8 +40,8 @@ def run(options):
 
     # Run
     model = load_model(model_file, options)
-    dataset = run_model(model)
-    save_preds(dataset, data_output_dir)
+    dataset, ground_truths = run_model(model)
+    save_preds(dataset, ground_truths, data_output_dir)
 
 
 
@@ -82,8 +82,9 @@ def run_model(model):
     :param args: The arguments (or options) passed to the script. Defaults specify the architecture
     :return: PyTorch Dataset object of 2D pose predictions
     """
-    # Placeholder dictionary for predictions
+    # Placeholder dictionarys for predictions and ground truths
     predictions = {}
+    ground_truths = {}
 
     # Loop through each item of the dataset
     for i in range(len(mpii_dataset)):
@@ -92,7 +93,7 @@ def run_model(model):
             print("At " + str(i) + " out of " + str(len(mpii_dataset)) + ".")
 
         # Get info about the file
-        inputs, _, meta = mpii_dataset[i]
+        inputs, targets, meta = mpii_dataset[i]
         filename = mpii_dataset.anno[mpii_dataset.train[i]]['img_paths']
 
         # Compute and store the prediction (unsqueeze input to make a batch size of one)
@@ -103,16 +104,18 @@ def run_model(model):
 
         # Squeeze output to remove the phantom batch size + put into dataset
         predictions[filename] = joint_preds.view(joint_preds.size()[1:])
+        ground_truths[filename] = targets
 
-    return predictions
+    return predictions, ground_truths
 
 
 
-def save_preds(dataset, data_output_dir):
+def save_preds(dataset, ground_truths, data_output_dir):
     """
     Save the PyTorch Dataset of predictions to a file
 
     :param dataset: The PyTorch Dataset object of predictions
+    :param ground_truths: The ground truth 2D joint locations
     :param data_output_dir: The filename for the file to save
     """
     # Make directory if it doesn't exists
@@ -121,6 +124,7 @@ def save_preds(dataset, data_output_dir):
 
     # Just save the predictions in the correct place via PyTorch
     torch.save(dataset, data_output_dir+"/2dposes")
+    torch.save(ground_truths, data_output_dir+"/ground_truths")
 
 
 
