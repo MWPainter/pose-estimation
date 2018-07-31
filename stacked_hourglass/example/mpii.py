@@ -74,17 +74,15 @@ def main(args):
     print('    Total params: %.2fM' % (sum(p.numel() for p in model.parameters())/1000000.0))
 
     # Data loading code
-    train_loader = torch.utils.data.DataLoader(
-        datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                      sigma=args.sigma, label_type=args.label_type),
-        batch_size=args.train_batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True)
-    
-    val_loader = torch.utils.data.DataLoader(
-        datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                      sigma=args.sigma, label_type=args.label_type, train=False),
-        batch_size=args.test_batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+    train_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
+                        sigma=args.sigma, label_type=args.label_type)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True,
+                        num_workers=args.workers, pin_memory=True)
+
+    val_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
+                        sigma=args.sigma, label_type=args.label_type, train=False)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.test_batch_size, shuffle=False,
+                        num_workers=args.workers, pin_memory=True)
 
     if args.evaluate:
         print('\nEvaluation only') 
@@ -115,13 +113,15 @@ def main(args):
         # remember best acc and save checkpoint
         is_best = valid_acc > best_acc
         best_acc = max(valid_acc, best_acc)
+        mean, stddev = train_dataset
         save_checkpoint({
             'epoch': epoch + 1,
             'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_acc': best_acc,
             'optimizer': optimizer.state_dict(),
-            # TODO: 'mean_stddev':
+            'mean': mean,
+            'stddev': stddev,
         }, predictions, is_best, checkpoint=args.checkpoint_dir)
 
     logger.close()

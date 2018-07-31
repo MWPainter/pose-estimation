@@ -40,18 +40,20 @@ def run(options):
 
     # Run
     model = load_model(model_file, options)
-    dataset = run_model(model, data_input_dir, options)
+    dataset = run_model(model)
     save_preds(dataset, data_output_dir)
 
 
 
-def load_model(model_file, args):
+def load_model_and_dataset(model_file, data_input_dir, args):
     """
     Load the PyTorch stacked hourglass model
 
     :param model_file: The file for the saved model
+    :param data_input_dir: Directory for the dataset to run network on
     :param args: The arguments (or options) passed to the script. Defaults specify the architecture
     :return: A PyTorch nn.Module object for the trained Stacked Hourglass network
+        and the dataset object
     """
     # Make the model
     model = models.__dict__['hg'](num_stacks=args.stacks, num_blocks=args.blocks, num_classes=args.num_classes)
@@ -62,22 +64,25 @@ def load_model(model_file, args):
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
-    return model
+    # create the dataset, NOT in train mode, and load the mean and stddev (if not a pre-trained model)
+    dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
+                        sigma=args.sigma, label_type=args.label_type, train=False)
+    if 'mean' in checkpoint and 'stddev' in checkpoint:
+        dataset.set_mean_stddev(checkpoint['mean'], checkpoint['stddev'])
+
+    return model, dataset
 
 
 
-def run_model(model, data_input_dir, args):
+def run_model(model):
     """
     Run a trained model on an entire dataset
 
     :param model: PyTorch nn.Module object for the trained Stacked Hourglass network
-    :param data_input_dir: Directory for the dataset to run network on
     :param args: The arguments (or options) passed to the script. Defaults specify the architecture
     :return: PyTorch Dataset object of 2D pose predictions
     """
     # Make the dataset object (for now just hard coded dataset)
-    mpii_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type)
 
     # Placeholder dictionary for predictions
     predictions = {}

@@ -16,7 +16,7 @@ from stacked_hourglass.pose.utils.transforms import *
 
 class Mpii(data.Dataset):
     def __init__(self, jsonfile, img_folder, inp_res=256, out_res=64, train=True, sigma=1,
-                 scale_factor=0.25, rot_factor=30, label_type='Gaussian'):
+                 scale_factor=0.25, rot_factor=30, label_type='Gaussian', mean=None, stddev=None):
         self.img_folder = img_folder    # root image folders
         self.is_train = train           # training set or test set
         self.inp_res = inp_res
@@ -36,33 +36,45 @@ class Mpii(data.Dataset):
                 self.valid.append(idx)
             else:
                 self.train.append(idx)
-        self.mean, self.std = self._compute_mean()
+
+        # Avoid work computing new mean + stddev if we can
+        if mean is not None and stddev is not None:
+            self.mean, self.stddev = mean, stddev
+        else:
+            self.mean, self.std = self._compute_mean()
+
 
     def _compute_mean(self):
-        meanstd_file = './stacked_hourglass/data/mpii/mean.pth.tar'
-        if isfile(meanstd_file):
-            meanstd = torch.load(meanstd_file)
-        else:
-            mean = torch.zeros(3)
-            std = torch.zeros(3)
-            for index in self.train:
-                a = self.anno[index]
-                img_path = os.path.join(self.img_folder, a['img_paths'])
-                img = load_image(img_path) # CxHxW
-                mean += img.view(img.size(0), -1).mean(1)
-                std += img.view(img.size(0), -1).std(1)
-            mean /= len(self.train)
-            std /= len(self.train)
-            meanstd = {
-                'mean': mean,
-                'std': std,
-                }
-            torch.save(meanstd, meanstd_file)
+        mean = torch.zeros(3)
+        std = torch.zeros(3)
+        for index in self.train:
+            a = self.anno[index]
+            img_path = os.path.join(self.img_folder, a['img_paths'])
+            img = load_image(img_path) # CxHxW
+            mean += img.view(img.size(0), -1).mean(1)
+            std += img.view(img.size(0), -1).std(1)
+        mean /= len(self.train)
+        std /= len(self.train)
+        meanstd = {
+            'mean': mean,
+            'std': std,
+            }
+        torch.save(meanstd, meanstd_file)
         if self.is_train:
             print('    Mean: %.4f, %.4f, %.4f' % (meanstd['mean'][0], meanstd['mean'][1], meanstd['mean'][2]))
             print('    Std:  %.4f, %.4f, %.4f' % (meanstd['std'][0], meanstd['std'][1], meanstd['std'][2]))
             
         return meanstd['mean'], meanstd['std']
+
+
+    def set_mean_stddev(self, mean, stddev):
+        meanstd['mean'] = mean
+        meanstd['std'] = stddev
+
+
+    def get_mean_stddev(self):
+        return meanstd['mean'], meanstd['std']
+
 
     def __getitem__(self, index):
         sf = self.scale_factor
@@ -123,6 +135,7 @@ class Mpii(data.Dataset):
         'pts' : pts, 'tpts' : tpts}
 
         return inp, target, meta
+
 
     def __len__(self):
         if self.is_train:

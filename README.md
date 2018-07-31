@@ -34,7 +34,9 @@ documents the nested repositories via how they are used. (README.md files for th
 - Changes to parse_args options, for consistency
 - Added `stacked_hourglass/utils/run.py` which contains code to load a trained model, run predictions on some data and save those predictions.
 - Cannabilized the `visualize` function in `stacked_hourglass/evaluation/utils.py` to provide a clean visualization of a 2d pose overlay on some image.
-
+- Updated the MPII dataset to be able to set and get the mean and stddev for data normalization. (Otherwise we can't train 
+    multiple models with different datasets correctly). Changes found in dataset `stacked_hourglass/pose/dataset/mpii.py` 
+    and the training loop in `stacked_hourglass/example/mpii.py`
 
 ### 2D to 3D code
 - Original repo from <https://github.com/weigq/3d_pose_baseline_pytorch>
