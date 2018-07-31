@@ -32,8 +32,9 @@ actions = ["all",
 
 
 # Defaults dictionary to provide different default arguments for different scripts
-defaults = \
+training_defaults = \
     {
+        # for train/run
         "2d3d":
             {
                 # General options
@@ -48,6 +49,7 @@ defaults = \
                 "test_batch_size": 64,
             },
 
+        # for train/run
         "hourglass":
             {
                 # General options
@@ -61,7 +63,6 @@ defaults = \
                 "train_batch_size": 6,
                 "test_batch_size": 6,
             },
-
         "":
             {
                 # General options
@@ -77,7 +78,25 @@ defaults = \
             },
     }
 
+visualize_defaults = \
+    {
 
+        "2d_overlay_3d_pred":
+            {
+                # General options
+                "img_dir": "data/h36m",
+                "twod_pose_estimations": "data/hourglass_2d_pred",
+                "threed_pose_estimations": "data/twod_threed_3d_pred",
+                "output_dir": "visualizations/2d_overlay_with_3d_pred",
+            },
+        "":
+            {
+                "img_dir": "",
+                "twod_pose_estimations": "",
+                "threed_pose_estimations": "",
+                "output_dir": "",
+            },
+    }
 
 class Options:
     def __init__(self, script_id):
@@ -86,13 +105,19 @@ class Options:
         self.script_id = script_id if script_id is not None else ""
 
 
-    def _initial(self):
+    def _initial(self, t_defaults, v_defaults):
+        """
+        Initialize the argparse parser
+
+        :param t_defaults: Dictionary of defaults for training params
+        :param v_defaults: Dictionary of defaults for visualizations params
+        """
         # ===============================================================
         #                     General options
         # ===============================================================
-        self.parser.add_argument('--data_dir',       type=str, default=defaults[self.script_id]["data_dir"], help='path to dataset')
-        self.parser.add_argument('--checkpoint_dir', type=str, default=defaults[self.script_id]["checkpoint_dir"], help='path to store model checkpoints')
-        self.parser.add_argument('--output_dir',     type=str, default=defaults[self.script_id]["output_dir"], help='where to store output (if any)')
+        self.parser.add_argument('--data_dir',       type=str, default=t_defaults["data_dir"], help='path to dataset')
+        self.parser.add_argument('--checkpoint_dir', type=str, default=t_defaults["checkpoint_dir"], help='path to store model checkpoints')
+        self.parser.add_argument('--output_dir',     type=str, default=t_defaults["output_dir"], help='where to store output (if any)')
 
         self.parser.add_argument('--exp',            type=str, default='0', help='ID of experiment')
         #self.parser.add_argument('--ckpt',           type=str, default='checkpoint/', help='path to save checkpoint')
@@ -103,19 +128,33 @@ class Options:
 
         self.parser.add_argument('--action',         type=str, default='All', choices=actions, help='All for all actions')
 
-        self.parser.add_argument('--process_as_video', dest='process_as_video', action='store_true', help='Process videos when using run.py with a network that operates on single frames')
-
         # ===============================================================
         #                     General training options
         # ===============================================================
-        self.parser.add_argument('--lr', type=float, default=defaults[self.script_id]["lr"])
+        self.parser.add_argument('--lr', type=float, default=t_defaults["lr"])
         self.parser.add_argument('--lr_decay', type=int, default=100000, help='# steps of lr decay')
         self.parser.add_argument('--lr_gamma', type=float, default=0.96)
-        self.parser.add_argument('--epochs', type=int, default=defaults[self.script_id]["epochs"])
+        self.parser.add_argument('--epochs', type=int, default=t_defaults["epochs"])
         self.parser.add_argument('--dropout', type=float, default=0.5,
                                  help='dropout probability, 1.0 to make no dropout')
-        self.parser.add_argument('--train_batch_size', type=int, default=defaults[self.script_id]['train_batch_size'])
-        self.parser.add_argument('--test_batch_size', type=int, default=defaults[self.script_id]['test_batch_size'])
+        self.parser.add_argument('--train_batch_size', type=int, default=t_defaults['train_batch_size'])
+        self.parser.add_argument('--test_batch_size', type=int, default=t_defaults['test_batch_size'])
+
+        # ===============================================================
+        #                     run.py specific options
+        # ===============================================================
+        self.parser.add_argument('--process_as_video', dest='process_as_video', action='store_true',
+                                 help='Process videos when using run.py with a network that operates on single frames')
+
+        # ===============================================================
+        #                     viz.py specific options
+        # ===============================================================
+        self.parser.add_argument('--img_dir',                 type=str, default=v_defaults["img_dir"], help='Directory for original images processed')
+        self.parser.add_argument('--2d_pose_ground_truths',     dest='twod_pose_ground_truths', type=str, help='File containing the 2d ground truth poses for the images')
+        self.parser.add_argument('--2d_pose_estimations',     dest='twod_pose_estimations', type=str, default=v_defaults["twod_pose_estimations"], help='File containing the 2d pose estimations for the images')
+        self.parser.add_argument('--3d_pose_ground_truths',     dest='threed_pose_ground_truths', type=str, help='File containing the 3d ground truth poses for the images')
+        self.parser.add_argument('--3d_pose_estimations',     dest='threed_pose_estimations', type=str, default=v_defaults["threed_pose_estimations"], help='File containing the 3d pose estimations for the images')
+
 
         # ===============================================================
         #                     Hourglass model options
@@ -193,8 +232,10 @@ class Options:
 
 
     def parse(self):
-        # Parse the (known) arguments (with respect to the parser)
-        self._initial()
+        # Parse the (known) arguments (with respect to the parser). Provide defaults appropriately
+        training_key = self.script_id if self.script_id in training_defaults.keys() else ""
+        viz_key = self.script_id if self.script_id in visualize_defaults.keys() else ""
+        self._initial(training_defaults[training_key], visualize_defaults[viz_key])
         self.opt, _ = self.parser.parse_known_args()
 
         # Perform some validation on input

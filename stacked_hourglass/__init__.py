@@ -9,3 +9,4 @@ from . import pose
 from . import example
 # from . import evaluation
 # from . import data
+from . import evaluation

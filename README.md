@@ -16,25 +16,27 @@ twod_threed/                                        folder containing code for 2
     ...
 stacked_hourglass/                                  folder containing code for RGB to 2D pose estimation (from: 
     ...                                      
-model_checkpoints/                                             folder where models will be saved
+model_checkpoints/                                  folder where models will be saved
     ... (empty initially)
-visualizations/                                     folder where visualizations will be saved
+visualizations/                                     folder where visualizations will be saved (by default)
     ... (empty initially)                            
 data/                                               folder to save data (including outputs from networks)
     ... (empty initially)
 ~~~~
 
-N.B. we didn't write the code in the "twod_threed" and "stacked_hourglass" folders, so the overall "code consistency" is 
-likely to be missing. All code outside of these folders was hopefully written in a consistent manor, and hopefully also 
-somewhat documents the other repositories in how they are used.
+N.B. we didn't write the code in the "twod_threed" and "stacked_hourglass" folders, so overall "code consistency" will 
+be lacking. All code outside of these folders is hopefully written in a consistent manor, and hopefully also 
+documents the nested repositories via how they are used. (README.md files for the nested repositories were not touched).
 
 ## Changes made to the pre-existing repos
 ### Stacked Hourglass code
 - Changes to parse_args options, for consistency
 - Added `stacked_hourglass/utils/run.py` which contains code to load a trained model, run predictions on some data and save those predictions.
+- Cannabilized the `visualize` function in `stacked_hourglass/evaluation/utils.py` to provide a clean visualization of a 2d pose overlay on some image.
 
 ### 2D to 3D code
 - Changes to parse_args options, for consistency
+- Added `twod_threed/run.py` which contains code to load a trained model, run predictions on some data and save those predictions.
 - Added processing to handle input shapes (batch_size, num_joint, 2) rather than just (batch_size, 2*num_joints). In 
     such a case, output is of shape (batch_size, num_joints, 3). Changes are found in `twod_threed/src/model.py`'s 
     forward function. 
@@ -96,3 +98,14 @@ Saved models can be run on a dataset to provide predictions:
     - `--data_dir <data_dir>` required, the directory for the images to run the network on
     - `--output_dir <data_dir>` the directory to store the predictions at (in a PyTorch dataset)
     - `--process_as_video` Process videos when using run.py with a network that operates on single frames
+    
+    
+### Visualizing Models
+Once we have processed data in a consistent manor, we can visualize the outputs (and ground truths) using viz.py
+
+- `python viz.py 2d_overlay_3d_pred` Outputs vizualizations of 2D poses ontop of the original images + adds a 3D pose 
+        estimation netxt to it
+    - `--img_dir <img_dir>` The direcory for the images input
+    - `--2d_pose_estimations <2d_pose_estimate_file>` 2d pose estimations for the images input
+    - `--3d_pose_estimation <3d_pose_estimate_file>` 3d pose estimations for the images input
+    - `--output_dir <viz_dir>` The directory to output the vizualized images to

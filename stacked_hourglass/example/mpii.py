@@ -120,7 +120,8 @@ def main(args):
             'arch': args.arch,
             'state_dict': model.state_dict(),
             'best_acc': best_acc,
-            'optimizer' : optimizer.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            # TODO: 'mean_stddev':
         }, predictions, is_best, checkpoint=args.checkpoint_dir)
 
     logger.close()

@@ -1,18 +1,21 @@
 
-def visualize(oriImg, points, pa):
+# constant options for how to draw the pose
+pa = [2, 3, 7, 7, 4, 5, 8, 9, 10, 0, 12, 13, 8, 8, 14, 15]      # parent relations between joints
+linewidth = 8                                                   # line width for skeleton
+colors = [[255, 0, 0],      [255, 85, 0],       [255, 170, 0],  # colors to use for skeleton
+          [255, 255, 0],    [170, 255, 0],      [85, 255, 0],
+          [0, 255, 0],      [0, 255, 85],       [0, 255, 170],
+          [0, 255, 255],    [0, 170, 255],      [0, 85, 255],
+          [0, 0, 255],      [85, 0, 255],       [170,0,255],
+          [255,0,255]]
+
+def visualize(oriImg, points):
     import matplotlib
     import cv2 as cv
     import matplotlib.pyplot as plt
     import math
 
-    fig = matplotlib.pyplot.gcf()
-    # fig.set_size_inches(12, 12)
-
-    colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0],
-              [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],
-              [170,0,255],[255,0,255]]
     canvas = oriImg
-    stickwidth = 4
     x = points[:, 0]
     y = points[:, 1]
 
@@ -26,19 +29,7 @@ def visualize(oriImg, points, pa):
             x2 = x[child]
             y2 = y[child]
 
-            cv.line(canvas, (x1, y1), (x2, y2), colors[child], 8)
+            cv.line(canvas, (x1, y1), (x2, y2), colors[child], linewidth)
 
-
-    plt.imshow(canvas[:, :, [2, 1, 0]])
-    fig = matplotlib.pyplot.gcf()
-    fig.set_size_inches(12, 12)
-
-    from time import gmtime, strftime
-    import os
-    directory = 'stacked_hourglass/data/mpii/result/test_images'
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    fn = os.path.join(directory, strftime("%Y-%m-%d-%H_%M_%S", gmtime()) + '.jpg')
-
-    plt.savefig(fn)
+    # return the original image with the overlay
+    return canvas[:, :, [2, 1, 0]]
