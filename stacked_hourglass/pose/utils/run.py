@@ -82,8 +82,6 @@ def run_model(model):
     :param args: The arguments (or options) passed to the script. Defaults specify the architecture
     :return: PyTorch Dataset object of 2D pose predictions
     """
-    # Make the dataset object (for now just hard coded dataset)
-
     # Placeholder dictionary for predictions
     predictions = {}
 
