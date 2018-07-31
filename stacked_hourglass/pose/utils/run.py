@@ -90,7 +90,7 @@ def run_model(model, data_input_dir, args):
 
         # Get info about the file
         inputs, _, meta = mpii_dataset[i]
-        filename = os.path.join(mpii_dataset.img_folder, mpii_dataset.anno[mpii_dataset.train[i]]['img_paths'])
+        filename = mpii_dataset.anno[mpii_dataset.train[i]]['img_paths']
 
         # Compute and store the prediction (unsqueeze input to make a batch size of one)
         input_var = torch.autograd.Variable(inputs.unsqueeze(0).cuda(), volatile=True)
