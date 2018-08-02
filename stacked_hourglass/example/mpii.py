@@ -105,16 +105,17 @@ def main(args):
             val_loader.dataset.sigma *=  args.sigma_decay
 
         # train for one epoch
-        train_loss, train_acc = train(train_loader, model, criterion, optimizer, args.debug, args.flip)
+        train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, writer,
+                                                    args.debug, args.flip)
 
         # evaluate on validation set
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,
-                                                      args.debug, args.flip)
+                                                    args.debug, args.flip)
 
         # append logger file, and write to tensorboard summaries
-        writer.add_scalars('data/losses_wrt_epochs', {'train_loss': train_loss, 'test_lost': valid_loss})
-        writer.add_scalar('data/train_accuracy', train_acc)
-        writer.add_scalar('data/test_accuracy', valid_acc)
+        writer.add_scalars('data/losses_wrt_epochs', {'train_loss': train_loss, 'test_lost': valid_loss}, epoch)
+        writer.add_scalar('data/train_accuracy', train_acc, epoch)
+        writer.add_scalar('data/test_accuracy', valid_acc, epoch)
         logger.append([epoch + 1, lr, train_loss, valid_loss, train_acc, valid_acc])
 
         # remember best acc and save checkpoint
@@ -136,7 +137,7 @@ def main(args):
     savefig(os.path.join(args.checkpoint_dir, 'log.eps'))
 
 
-def train(train_loader, model, criterion, optimizer, debug=False, flip=True):
+def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -147,8 +148,11 @@ def train(train_loader, model, criterion, optimizer, debug=False, flip=True):
 
     end = time.time()
 
+    epoch_len = len(train_loader)
+    epoch_beg_iter = epoch * epoch_len
+
     gt_win, pred_win = None, None
-    bar = Bar('Processing', max=len(train_loader))
+    bar = Bar('Processing', max=epoch_len)
     for i, (inputs, target, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -191,7 +195,8 @@ def train(train_loader, model, criterion, optimizer, debug=False, flip=True):
         optimizer.step()
 
         # Plot the (noisy) per minibatch loss
-        writer.add_scalar('data/train_losse_wrt_iter', train_loss)
+        iter = epoch_beg_iter + i
+        writer.add_scalar('data/train_loss_wrt_iter', train_loss, iter)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
