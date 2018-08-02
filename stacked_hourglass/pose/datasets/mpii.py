@@ -46,6 +46,13 @@ class Mpii(data.Dataset):
 
 
     def _compute_mean(self):
+        # Load from cache if it exists
+        dataset_specific_cache_file = ".cache/mpii_meanstd"
+        if isfile(dataset_specific_cache_file):
+            meanstd = torch.load(dataset_specific_cache_file)
+            self.mean, self.std = meanstd["mean"], meanstd["stddev"]
+            return
+
         mean = torch.zeros(3)
         std = torch.zeros(3)
         train_len = len(self.train)
@@ -61,6 +68,10 @@ class Mpii(data.Dataset):
         if self.is_train:
             print('    Mean: %.4f, %.4f, %.4f' % (mean[0], mean[1], mean[2]))
             print('    Std:  %.4f, %.4f, %.4f' % (std[0], std[1], std[2]))
+
+        # Cache the computation (as it's slow)
+        cache = {"mean": mean, "stddev": std}
+        torch.save(cache, ".cache/mpii_meanstd")
 
         return mean, std
 
@@ -101,6 +112,9 @@ class Mpii(data.Dataset):
 
         r = 0
         if self.augment_data:
+
+
+            # Generate a random scale and rotation
             s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]
             r = torch.randn(1).mul_(rf).clamp(-2*rf, 2*rf)[0] if random.random() <= 0.6 else 0
 
