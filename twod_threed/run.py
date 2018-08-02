@@ -119,12 +119,13 @@ def _run_model_single_image(model, input_tensor):
     :param input_tensor: The 2dim PyTorch tensor containing the input joint coords
     :return: The 3D join coords predicted by the network
     """
-    input_tensor = input_tensor.unsqueeze(0)
-    print(input_tensor.size())
-    input_tensor = input_tensor.cuda()
-    output = model(input_tensor)
-    output = output.cpu()
-    return output
+    input_var = torch.autograd.Variable(input_tensor.unsqueeze(0).cuda(), volatile=True)
+    output = model(input_var)
+    return output[-1].data.cpu()
+
+
+
+    # return output
 
 
 
