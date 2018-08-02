@@ -125,10 +125,6 @@ def _run_model_single_image(model, input_tensor):
 
 
 
-    # return output
-
-
-
 def _save_preds(dataset, data_output_dir):
     """
     Save the PyTorch Dataset of predictions to a file
