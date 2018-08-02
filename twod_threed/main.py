@@ -26,6 +26,8 @@ import twod_threed.src.log as log
 from twod_threed.src.model import LinearModel, weight_init
 from twod_threed.src.datasets.human36m import Human36M
 
+from tensorboardX import SummaryWriter
+
 
 def main(opt):
     start_epoch = 0
@@ -35,6 +37,9 @@ def main(opt):
 
     # save options
     log.save_options(opt, opt.checkpoint_dir)
+
+    # Make a summary writer
+    writer = SummaryWriter(log_dir='model_checkpoints/tb')
 
     # create model
     print(">>> creating model")
@@ -122,6 +127,10 @@ def main(opt):
             max_norm=opt.max_norm)
         loss_test, err_test = test(test_loader, model, criterion, stat_3d, procrustes=opt.procrustes)
 
+        # Update tensorboard summaries
+        writer.add_scalars('data/loss', {'train_loss': loss_train, 'test_loss': loss_train})
+        writer.add_scalar('data/validation_error', err_test)
+
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, loss_test, err_test],
                       ['int', 'float', 'float', 'flaot', 'float'])
@@ -149,6 +158,7 @@ def main(opt):
                           is_best=False)
 
     logger.close()
+    writer.close()
 
 
 def train(train_loader, model, criterion, optimizer,

@@ -21,6 +21,8 @@ from stacked_hourglass.pose.utils.transforms import fliplr, flip_back
 import stacked_hourglass.pose.models as models
 import stacked_hourglass.pose.datasets as datasets
 
+from tensorboardX import SummaryWriter
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
@@ -45,11 +47,13 @@ def main(args):
 
     # define loss function (criterion) and optimizer
     criterion = torch.nn.MSELoss(size_average=True).cuda()
-
     optimizer = torch.optim.RMSprop(model.parameters(), 
                                 lr=args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+
+    # Create a tensorboard writer
+    writer = SummaryWriter(log_dir='model_checkpoints/tb')
 
     # optionally resume from a checkpoint
     title = 'mpii-' + args.arch
@@ -107,13 +111,16 @@ def main(args):
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,
                                                       args.debug, args.flip)
 
-        # append logger file
+        # append logger file, and write to tensorboard summaries
+        writer.add_scalars('data/losses_wrt_epochs', {'train_loss': train_loss, 'test_lost': valid_loss})
+        writer.add_scalar('data/train_accuracy', train_acc)
+        writer.add_scalar('data/test_accuracy', valid_acc)
         logger.append([epoch + 1, lr, train_loss, valid_loss, train_acc, valid_acc])
 
         # remember best acc and save checkpoint
         is_best = valid_acc > best_acc
         best_acc = max(valid_acc, best_acc)
-        mean, stddev = train_dataset
+        mean, stddev = train_dataset.get_mean_stddev()
         save_checkpoint({
             'epoch': epoch + 1,
             'arch': args.arch,
@@ -182,6 +189,9 @@ def train(train_loader, model, criterion, optimizer, debug=False, flip=True):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        # Plot the (noisy) per minibatch loss
+        writer.add_scalar('data/train_losse_wrt_iter', train_loss)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
