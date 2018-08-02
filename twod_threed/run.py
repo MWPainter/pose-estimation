@@ -78,8 +78,8 @@ def _run_model(model, data_input_dir, process_as_video):
     # Loop through all keys in dataset. Handle single images by unsqeezing and squeezing to simulate a "batch"
     for key in dataset:
         # Progress
-        # if i % 0 == 0:
-        print("At " + str(i) + " out of " + str(len(dataset)) + ".")
+        if i % 30 == 0:
+            print("At " + str(i) + " out of " + str(len(dataset)) + " videos.")
         i += 1
 
         input_tensor = torch.Tensor(dataset[key])
