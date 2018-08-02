@@ -75,15 +75,17 @@ SH_NAMES[15] = 'LWrist'
 
 def viz_3d_pose(points):
     """
-    Given 3d points, vizualize them on a plot.
-    Makes a matplotlib figure, pass it into the plot function and then converts it to an image and returns image pixel data
+    Given joint points, vizualize them on a plot and return them as a np.ndarray
 
-    :param points: The joint locations to plot
-    :return: An image (in the form of a numpy array) of a matplotlib plot of the 3d pose
+    :param points: The 2d points of the joints to visualize
+    :param ax: matplotlib 2d axis to draw on
+    :return: A image in the form of a numpy array, the image is of a matplotlib figure
     """
     fig = plt.figure(figsize=(10.0, 10.0))
+    ax = fig.add_subplot(111, projection='3d')
     plt.axis('off')
-    show3Dpose(points, plt.gca())
+
+    _plot3Dpose(points, ax)
 
     # convert fig to a numpy array
     # see: https://stackoverflow.com/questions/7821518/matplotlib-save-plot-to-numpy-array
@@ -94,7 +96,32 @@ def viz_3d_pose(points):
     return data
 
 
-def show3Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=False): # blue, orange
+
+def viz_2d_pose(points):
+    """
+    Given joint points, vizualize them on a plot and return them as a np.ndarray
+
+    :param points: The 2d points of the joints to visualize
+    :param ax: matplotlib 2d axis to draw on
+    :return: A image in the form of a numpy array, the image is of a matplotlib figure
+    """
+    fig = plt.figure(figsize=(10.0, 10.0))
+    ax = fig.add_subplot(111)
+    plt.axis('off')
+
+    _plot2Dpose(points, ax)
+
+    # convert fig to a numpy array
+    # see: https://stackoverflow.com/questions/7821518/matplotlib-save-plot-to-numpy-array
+    fig.canvas.draw()
+    data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
+    return data
+
+
+
+def _plot3Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=False): # blue, orange
     """
     Visualize a 3d skeleton on a matplotlib axis
 
@@ -105,7 +132,6 @@ def show3Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=Fals
     :param add_labels: whether to add coordinate labels
     :return: Nothing. Draws on ax.
     """
-
     # Get joint coords from the input and make sure its correct shape
     vals = channels if type(channels) is np.ndarray else channels.cpu().detach().numpy()
     vals = np.reshape(vals, (-1, 3))
@@ -115,41 +141,71 @@ def show3Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=Fals
     # LR = np.array([1, 1, 1, 0, 0, 0, 0, 0,  0,  0,  0,  0,  0,  1, 1, 1], dtype=bool) # h36m right size edges
     I  = np.array([0, 1, 2, 5, 4, 3, 6, 7, 15, 14, 13, 10, 11, 12, 8])                  # stacked hourglass start points
     J  = np.array([1, 2, 6, 4, 3, 6, 7, 8, 14, 13,  8, 11, 12,  8, 9])                  # stacked hourglass end points
-    LR = np.array([1, 1, 1, 0, 0, 0, 0, 0,  0,  0,  0,  1,  1,  1, 0])                  # stacked hourglass end points
+    LR = np.array([1, 1, 1, 0, 0, 0, 0, 0,  0,  0,  0,  1,  1,  1, 0], dtype=bool)      # stacked hourglass end points
 
     # Make connection matrix
     for i in np.arange(len(I)):
         x, y, z = [np.array( [vals[I[i], j], vals[J[i], j]] ) for j in range(3)]
         ax.plot(x, y, z, lw=2, c=lcolor if LR[i] else rcolor)
 
+    xroot, yroot, zroot = vals[0,0], vals[0,1], vals[0,2]
+    ax.set_xlim([-THREED_RADIUS+xroot, THREED_RADIUS+xroot])
+    ax.set_ylim([-THREED_RADIUS+yroot, THREED_RADIUS+yroot])
+    ax.set_zlim([-THREED_RADIUS+zroot, THREED_RADIUS+zroot])
     if add_labels:
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
 
+    # Get rid of the ticks
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+
+    # Get rid of the ticks and tick labels
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+
+    ax.get_xaxis().set_ticklabels([])
+    ax.get_yaxis().set_ticklabels([])
+    ax.set_zticklabels([])
+    ax.set_aspect('equal')
+
+    # Get rid of the panes (actually, make them white)
+    white = (1.0, 1.0, 1.0, 0.0)
+    ax.w_xaxis.set_pane_color(white)
+    ax.w_yaxis.set_pane_color(white)
+    # Keep z pane
+
+    # Get rid of the lines in 3d
+    ax.w_xaxis.line.set_color(white)
+    ax.w_yaxis.line.set_color(white)
+    ax.w_zaxis.line.set_color(white)
 
 
-def plot2Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=False):
+
+def _plot2Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=False):
     """
     Visualize a 2d skeleton on a matplotlib axis
 
-    :param channels: 64x1 vector. The pose to plot.
-    :param ax: matplotlib 3d axis to draw on
+    :param channels: 1x32 vector or a 16x2. The pose to plot.
+    :param ax: matplotlib 2d axis to draw on
     :param lcolor: color for left part of the body
     :param rcolor: color for right part of the body
     :param add_labels: whether to add coordinate labels
     :return: Nothing. Draws on ax.
     """
-
-    assert channels.size == len(data_utils.H36M_NAMES)*2, "channels should have 64 entries, it has %d instead" % channels.size
-    vals = np.reshape( channels, (len(data_utils.H36M_NAMES), -1) )
+    # Get joint coords from the input and make sure its correct shape
+    vals = channels if type(channels) is np.ndarray else channels.cpu().detach().numpy()
+    vals = np.reshape(vals, (-1, 2))
 
     # I = np.array([1, 2, 3, 1, 7, 8, 1, 13, 14, 15, 14, 18, 19, 14, 26, 27]) - 1       # h36m start points
     # J = np.array([2, 3, 4, 7, 8, 9, 13, 14, 15, 16, 18, 19, 20, 26, 27, 28]) - 1      # h36m end points
     # LR = np.array([1, 1, 1, 0, 0, 0, 0, 0,  0,  0,  0,  0,  0,  1, 1, 1], dtype=bool) # h36m right size edges
     I  = np.array([0, 1, 2, 5, 4, 3, 6, 7, 15, 14, 13, 10, 11, 12, 8])                  # stacked hourglass start points
     J  = np.array([1, 2, 6, 4, 3, 6, 7, 8, 14, 13,  8, 11, 12,  8, 9])                  # stacked hourglass end points
-    LR = np.array([1, 1, 1, 0, 0, 0, 0, 0,  0,  0,  0,  1,  1,  1, 0])                  # stacked hourglass end points
+    LR = np.array([1, 1, 1, 0, 0, 0, 0, 0,  0,  0,  0,  1,  1,  1, 0], dtype=bool)      # stacked hourglass end points
 
     # Make connection matrix
     for i in np.arange( len(I) ):
@@ -165,8 +221,8 @@ def plot2Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=Fals
     ax.get_yaxis().set_ticklabels([])
 
     xroot, yroot = vals[0,0], vals[0,1]
-    ax.set_xlim([-THREED_RADIUS+xroot, THREED_RADIUS+xroot])
-    ax.set_ylim([-THREED_RADIUS+yroot, THREED_RADIUS+yroot])
+    ax.set_xlim([-TWOD_RADIUS+xroot, TWOD_RADIUS+xroot])
+    ax.set_ylim([-TWOD_RADIUS+yroot, TWOD_RADIUS+yroot])
     if add_labels:
         ax.set_xlabel("x")
         ax.set_ylabel("z")

@@ -10,6 +10,16 @@ from torch.utils.data import Dataset
 TRAIN_SUBJECTS = [1, 5, 6, 7, 8]
 TEST_SUBJECTS = [9, 11]
 
+def get_3d_key_from_2d_key(k2d):
+    """
+    Given k2d of the form (actor number, action, filename)
+    :param k2d: The key for the 2d dataset
+    :return: k3d, the key for the 3d dataset (the corresponding 3d pose)
+    """
+    (sub, act, fname) = k2d
+    k3d = (sub, act, fname[:-3]) if fname.endswith('-sh') else k2d
+    return k3d
+
 
 class Human36M(Dataset):
     def __init__(self, actions, data_path, use_hg=True, is_train=True):
@@ -42,9 +52,7 @@ class Human36M(Dataset):
             self.train_3d = torch.load(os.path.join(data_path, 'train_3d.pth.tar'))
             self.train_2d = torch.load(os.path.join(data_path, train_2d_file))
             for k2d in self.train_2d.keys():
-                (sub, act, fname) = k2d
-                k3d = k2d
-                k3d = (sub, act, fname[:-3]) if fname.endswith('-sh') else k3d
+                k3d = get_3d_key_from_2d_key(k2d)
                 num_f, _ = self.train_2d[k2d].shape
                 assert self.train_3d[k3d].shape[0] == self.train_2d[k2d].shape[0], '(training) 3d & 2d shape not matched'
                 for i in range(num_f):
@@ -57,10 +65,9 @@ class Human36M(Dataset):
             self.test_2d = torch.load(os.path.join(data_path, test_2d_file))
             for k2d in self.test_2d.keys():
                 (sub, act, fname) = k2d
+                k3d = get_3d_key_from_2d_key(k2d)
                 if act not in self.actions:
                     continue
-                k3d = k2d
-                k3d = (sub, act, fname[:-3]) if fname.endswith('-sh') else k3d
                 num_f, _ = self.test_2d[k2d].shape
                 assert self.test_2d[k2d].shape[0] == self.test_3d[k3d].shape[0], '(test) 3d & 2d shape not matched'
                 for i in range(num_f):
