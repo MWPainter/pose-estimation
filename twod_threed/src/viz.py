@@ -93,6 +93,9 @@ def viz_3d_pose(points):
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
+    # avoid unecessary memory consumption
+    plt.close(fig)
+
     return data
 
 
@@ -117,6 +120,9 @@ def viz_2d_pose(points):
     data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
     data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
 
+    # avoid unecessary memory consumption
+    plt.close(fig)
+    
     return data
 
 
