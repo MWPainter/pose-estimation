@@ -34,13 +34,13 @@ def run(options):
     process_as_video = options.process_as_video
 
     # Run
-    model = load_model(model_file)
-    dataset = run_model(model, data_input_dir, process_as_video)
-    save_preds(dataset, data_output_dir)
+    model = _load_model(model_file)
+    dataset = _run_model(model, data_input_dir, process_as_video)
+    _save_preds(dataset, data_output_dir)
 
 
 
-def load_model(model_file):
+def _load_model(model_file):
     """
     Load the PyTorch 2D to 3D pose model
 
@@ -60,7 +60,7 @@ def load_model(model_file):
 
 
 
-def run_model(model, data_input_dir, process_as_video):
+def _run_model(model, data_input_dir, process_as_video):
     """
     Run a trained model on an entire dataset
 
@@ -73,39 +73,45 @@ def run_model(model, data_input_dir, process_as_video):
     dataset = torch.load(data_input_dir)
     predictions = {}
 
+    i = 0
+
     # Loop through all keys in dataset. Handle single images by unsqeezing and squeezing to simulate a "batch"
     for key in dataset:
-        input_tensor = torch.Tensor(dataset[key])
+        # Progress
+        # if i % 0 == 0:
+        print("At " + str(i) + " out of " + str(len(dataset)) + ".")
+        i += 1
 
+        input_tensor = torch.Tensor(dataset[key])
         # TODO: remove this (temporarily dealing with an old0 bug where we output shape (1,16,2) rather than (16,2) in run.py "hourglass"
         input_tensor = torch.squeeze(input_tensor)
 
         if process_as_video:
-            predictions[key] = run_model_video(model, input_tensor)
+            predictions[key] = _run_model_video(model, input_tensor)
         else:
-            predictions[key] = run_model_single_image(model, input_tensor)
+            predictions[key] = _run_model_single_image(model, input_tensor)
 
     return predictions
 
 
 
-def run_model_video(model, input_tensor):
+def _run_model_video(model, input_tensor):
     """
     If each input is a video (rather than a single frame), run the network on all of the frames
     independently, and aggregate the result in a torch.Tensor.
 
-    :param model:
-    :param input_tensor:
-    :return:
+    :param model: PyTorch nn.Module object for the trained Stacked Hourglass network
+    :param input_tensor: 4D tensor, (time, x, y, depth) indexed for a video
+    :return: 3D tensor (time, joints, coords) for 2D joint predictions
     """
     frames = []
     for i in range(input_tensor.size()[0]):
-        frames.append(run_model_single_image(model, input_tensor[i]))
+        frames.append(_run_model_single_image(model, input_tensor[i]))
     return frames
 
 
 
-def run_model_single_image(model, input_tensor):
+def _run_model_single_image(model, input_tensor):
     """
     Takes a list of 2D joint coordinates for a single frame and runs the network to produce 3D joint coords
 
@@ -113,12 +119,16 @@ def run_model_single_image(model, input_tensor):
     :param input_tensor: The 2dim PyTorch tensor containing the input joint coords
     :return: The 3D join coords predicted by the network
     """
-    input_tensor = input_tensor.unsqueeze(0).cuda()
-    return model(input_tensor).cpu()
+    input_tensor = input_tensor.unsqueeze(0)
+    print(input_tensor.size())
+    input_tensor = input_tensor.cuda()
+    output = model(input_tensor)
+    output = output.cpu()
+    return output
 
 
 
-def save_preds(dataset, data_output_dir):
+def _save_preds(dataset, data_output_dir):
     """
     Save the PyTorch Dataset of predictions to a file
 
