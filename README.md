@@ -16,6 +16,10 @@ twod_threed/                                        folder containing code for 2
     ...
 stacked_hourglass/                                  folder containing code for RGB to 2D pose estimation (from: 
     ...                                      
+stitched/                                          
+    soft_argmax.py                                  defines a PyTorch nn.Module implementing a 'soft argmax' function
+    stitched_network.py                             defines a network (PyTorch nn.Module) combining twod_threed and stacked_hourglass models together 
+    ...
 model_checkpoints/                                  folder where models will be saved
     ... (empty initially)
 visualizations/                                     folder where visualizations will be saved (by default)
@@ -52,6 +56,8 @@ documents the nested repositories via how they are used. (README.md files for th
     - Copied files to `twod_threed/src/viz.py` and `twod_threed/src/data_utils.py`
     - Both files are edited to work directly out of stacked hourglass/MPII format of joint co-ordinates.
     - Renamed `camera.py` to `camaras.py` in `twod_threed/src` to be consistent with files copied from the tensorflow implementation.
+- Factored out code in the Human36m dataset class that translated keys for the 2D data to the keys for the 3D data. 
+    (Still unsure why they couldn't just be the same...). File `twod_threed/src/datasets/human36m.py`
 
 ## Data
 
