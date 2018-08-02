@@ -32,4 +32,5 @@ def visualize(oriImg, points):
             cv.line(canvas, (x1, y1), (x2, y2), colors[child], linewidth)
 
     # return the original image with the overlay
-    return canvas[:, :, [2, 1, 0]]
+    #return canvas[:, :, [2, 1, 0]]
+    return canvas
