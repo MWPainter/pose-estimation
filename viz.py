@@ -163,19 +163,16 @@ def visualize_2d_pred_3d_gt_3d_pred(options):
     i = 0
     total = len(twod_pose_ground_truths)
 
-    for key in threed_pose_preds:
-        print(key)
-
     # Loop through each pose (each item in the dict is an array (in time) of 2d poses
     for k2d in twod_pose_ground_truths:
         k3d = get_3d_key_from_2d_key(k2d)
         for t in range(len(twod_pose_ground_truths[k2d])):
             twod_gt_viz = viz_2d_pose(twod_pose_ground_truths[k2d][t])
             threed_gt_viz = viz_3d_pose(threed_pose_ground_truths[k3d][t])
-            threed_pred_viz = viz_3d_pose(threed_pose_preds[k3d][t])
+            threed_pred_viz = viz_3d_pose(threed_pose_preds[k2d][t])
 
             final_img = pack_images([twod_gt_viz, threed_gt_viz, threed_pred_viz])
-            scipy.misc.imsave(os.path.join(output_dir, idx+"_"+str(t)+".jpg"), final_img)
+            scipy.misc.imsave(os.path.join(output_dir, str(k2d)+"_"+str(t)+".jpg"), final_img)
 
             # progress
             if i % 100 == 0:
@@ -229,4 +226,4 @@ if __name__ == "__main__":
     elif script == "2d_overlay":
         visualize_2d_overlay(options)
     elif script == "2d_gt_3d_gt_3d_pred":
-        visualize_2d_gt_3d_gt_3d_pred(options)
+        visualize_2d_pred_3d_gt_3d_pred(options)
