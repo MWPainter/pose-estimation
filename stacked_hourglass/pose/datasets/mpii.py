@@ -40,7 +40,7 @@ class Mpii(data.Dataset):
 
         # Avoid work computing new mean + stddev if we can
         if mean is not None and stddev is not None:
-            self.mean, self.stddev = mean, stddev
+            self.mean, self.std = mean, stddev
         else:
             self.mean, self.std = self._compute_mean()
 
@@ -48,7 +48,9 @@ class Mpii(data.Dataset):
     def _compute_mean(self):
         mean = torch.zeros(3)
         std = torch.zeros(3)
+        train_len = len(self.train)
         for index in self.train:
+            if index % 100 == 0: print("In compute mean: At "+str(index)+" out of "+str(train_len))
             a = self.anno[index]
             img_path = os.path.join(self.img_folder, a['img_paths'])
             img = load_image(img_path) # CxHxW
@@ -56,25 +58,20 @@ class Mpii(data.Dataset):
             std += img.view(img.size(0), -1).std(1)
         mean /= len(self.train)
         std /= len(self.train)
-        meanstd = {
-            'mean': mean,
-            'std': std,
-            }
-        torch.save(meanstd, meanstd_file)
         if self.is_train:
-            print('    Mean: %.4f, %.4f, %.4f' % (meanstd['mean'][0], meanstd['mean'][1], meanstd['mean'][2]))
-            print('    Std:  %.4f, %.4f, %.4f' % (meanstd['std'][0], meanstd['std'][1], meanstd['std'][2]))
-            
-        return meanstd['mean'], meanstd['std']
+            print('    Mean: %.4f, %.4f, %.4f' % (mean[0], mean[1], mean[2]))
+            print('    Std:  %.4f, %.4f, %.4f' % (std[0], std[1], std[2]))
+
+        return mean, std
 
 
     def set_mean_stddev(self, mean, stddev):
-        meanstd['mean'] = mean
-        meanstd['std'] = stddev
+        self.mean = mean
+        self.std = stddev
 
 
     def get_mean_stddev(self):
-        return meanstd['mean'], meanstd['std']
+        return self.mean, self.std
 
 
     def __getitem__(self, index):

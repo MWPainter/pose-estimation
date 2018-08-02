@@ -19,7 +19,6 @@ from .osutils import mkdir_p, isfile, isdir, join
 from .. import models
 from .. import datasets
 
-idx = [1,2,3,4,5,6,11,12,15,16]
 
 
 def run(options):
@@ -39,19 +38,19 @@ def run(options):
     data_output_dir = options.output_dir
 
     # Run
-    model = load_model(model_file, options)
-    dataset, ground_truths = run_model(model)
-    save_preds(dataset, ground_truths, data_output_dir)
+    model, input_dataset = _load_model_and_dataset(model_file, data_input_dir, options)
+    dataset, ground_truths = _run_model(model, input_dataset)
+    _save_preds(dataset, ground_truths, data_output_dir)
 
 
 
-def load_model_and_dataset(model_file, data_input_dir, args):
+def _load_model_and_dataset(model_file, data_input_dir, args):
     """
     Load the PyTorch stacked hourglass model
 
     :param model_file: The file for the saved model
     :param data_input_dir: Directory for the dataset to run network on
-    :param args: The arguments (or options) passed to the script. Defaults specify the architecture
+    :param args: The arguments (or options) passed to the script. Needed to specify the architecture
     :return: A PyTorch nn.Module object for the trained Stacked Hourglass network
         and the dataset object
     """
@@ -65,21 +64,26 @@ def load_model_and_dataset(model_file, data_input_dir, args):
     model.eval()
 
     # create the dataset, NOT in train mode, and load the mean and stddev (if not a pre-trained model)
+    mean = checkpoint['mean'] if 'mean' in checkpoint else None
+    stddev = checkpoint['stddev'] if 'stddev' in checkpoint else None
     dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type, augment_data=False)
-    if 'mean' in checkpoint and 'stddev' in checkpoint:
-        dataset.set_mean_stddev(checkpoint['mean'], checkpoint['stddev'])
+                        sigma=args.sigma, label_type=args.label_type, augment_data=False, mean=mean, stddev=stddev)
+
+    # if the model is pre-trained, then the mean/stddev caching was done differently (so cache it!)
+    if 'mean' not in checkpoint or 'stddev' not in checkpoint:
+        checkpoint['mean'], checkpoint['stddev'] = dataset.get_mean_stddev()
+        torch.save(checkpoint, model_file)
 
     return model, dataset
 
 
 
-def run_model(model):
+def _run_model(model, dataset):
     """
     Run a trained model on an entire dataset
 
     :param model: PyTorch nn.Module object for the trained Stacked Hourglass network
-    :param args: The arguments (or options) passed to the script. Defaults specify the architecture
+    :param dataset: The input dataset to run the model on.
     :return: PyTorch Dataset object of 2D pose predictions
     """
     # Placeholder dictionarys for predictions and ground truths
@@ -87,14 +91,14 @@ def run_model(model):
     ground_truths = {}
 
     # Loop through each item of the dataset
-    for i in range(len(mpii_dataset)):
+    for i in range(len(dataset)):
         # Progress
         if i % 100 == 0:
-            print("At " + str(i) + " out of " + str(len(mpii_dataset)) + ".")
+            print("At " + str(i) + " out of " + str(len(dataset)) + ".")
 
         # Get info about the file
-        inputs, targets, meta = mpii_dataset[i]
-        filename = mpii_dataset.anno[mpii_dataset.train[i]]['img_paths']
+        inputs, targets, meta = dataset[i]
+        filename = dataset.anno[dataset.train[i]]['img_paths']
 
         # Compute and store the prediction (unsqueeze input to make a batch size of one)
         input_var = torch.autograd.Variable(inputs.unsqueeze(0).cuda(), volatile=True)
@@ -110,7 +114,7 @@ def run_model(model):
 
 
 
-def save_preds(dataset, ground_truths, data_output_dir):
+def _save_preds(dataset, ground_truths, data_output_dir):
     """
     Save the PyTorch Dataset of predictions to a file
 
