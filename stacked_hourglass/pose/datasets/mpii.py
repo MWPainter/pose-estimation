@@ -29,7 +29,7 @@ class Mpii(data.Dataset):
         self.no_random_masking = args is None or args.no_random_masking
 
         # Args for when there is random masking
-        if self.no_random_masking:
+        if not self.no_random_masking:
             self.mask_prob = args.mask_prob
             self.orientation_prob = args.orientation_prob
             self.mean_valued_prob = args.mean_valued_prob
