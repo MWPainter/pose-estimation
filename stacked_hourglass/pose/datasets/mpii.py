@@ -123,12 +123,13 @@ class Mpii(data.Dataset):
 
         r = 0
         if self.augment_data:
-            # If not, "no_random_masking" then randomly mask the image
+            # If not, "no_random_masking" then randomly mask the image (mask may copy img data to provide "no masking")
             if not self.no_random_masking:
                 pts_coords = pts[:,:2]
-                (min_x, max_x, min_y, max_y), mask = generate_random_mask(img, pts_coords, self.mask_prob,
+                should_mask, (min_x, max_x, min_y, max_y), mask = generate_random_mask(img, pts_coords, self.mask_prob,
                         self.orientation_prob, self.mean_valued_prob, self.mean, self.max_cover_ratio, self.noise_std)
-                img[:, min_x:max_x, min_y:max_y] = mask
+                if should_mask:
+                    img[:, min_x:max_x, min_y:max_y] = mask
 
             # Generate a random scale and rotation
             s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]

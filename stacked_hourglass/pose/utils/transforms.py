@@ -195,8 +195,9 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
     :param mean_valued_prob: Probability that the mask will be filled with the 'mean value' (rather than gaussian noise)
     :param max_cover_ratio: the maximum ratio of the bounding box (of the joint positions) the we allow to be covered
     :param noise_std: The stddev of the gaussian noise added, if the mask is filled with Gaussian noise
-    :return: (x_min, x_max, y_min, y_max), mask. A mask with its bounding box, the mask tensor's
-        shape is (C, x_max-x_min, y_max-y_min).
+    :return: shouldMask, (x_min, x_max, y_min, y_max), mask. A mask with its bounding box and boolean indicating
+        if we should mask at all. If we return False for "shouldMask" then the caller should ignore the rest of the
+        output. The mask tensor's shape is (C, x_max-x_min, y_max-y_min).
     """
     # Here bounding box means all points p are minx <= p.x < maxx
     C, W, H = img.size()
@@ -205,7 +206,7 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
     # decide whether to mask
     pr = random.random()
     if pr > mask_prob:
-        return (0, W, 0, H), img
+        return False, (0, 0, 0, 0), None
 
     # decide how large the mask is (and if it's a horizontal or vertical bar)
     # be careful to make sure that the min_x isn't at the end of the image, and that width is always >= 1
@@ -238,7 +239,7 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
         mask = mean
     else:
         mask = torch.normal(mean=mean, std=noise_std)
-    return bbox, mask
+    return True, bbox, mask
 
 
 
