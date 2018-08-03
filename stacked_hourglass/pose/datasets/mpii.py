@@ -16,7 +16,7 @@ from stacked_hourglass.pose.utils.transforms import *
 
 class Mpii(data.Dataset):
     def __init__(self, jsonfile, img_folder, inp_res=256, out_res=64, train=True, sigma=1, scale_factor=0.25, \
-                 rot_factor=30, label_type='Gaussian', mean=None, stddev=None, augment_data=True):
+                 rot_factor=30, label_type='Gaussian', mean=None, stddev=None, augment_data=True, args=None):
         self.img_folder = img_folder    # root image folders
         self.is_train = train           # training set or test set
         self.inp_res = inp_res
@@ -26,6 +26,15 @@ class Mpii(data.Dataset):
         self.rot_factor = rot_factor
         self.label_type = label_type
         self.augment_data = augment_data
+        self.no_random_masking = args is None or args.no_random_masking
+
+        # Args for when there is random masking
+        if self.no_random_masking:
+            self.mask_prob = args.mask_prob
+            self.orientation_prob = args.orientation_prob
+            self.mean_valued_prob = args.mean_valued_prob
+            self.max_cover_ratio = args.max_cover_ratio
+            self.noise_std = args.noise_std
 
         # create train/val split
         with open(jsonfile) as anno_file:   
@@ -115,6 +124,11 @@ class Mpii(data.Dataset):
         r = 0
         if self.augment_data:
             # If not, "no_random_masking" then randomly mask the image
+            if not self.no_random_masking:
+                pts_coords = pts[:,:2]
+                (min_x, max_x, min_y, max_y), mask = generate_random_mask(img, pts_coords, self.mask_prob,
+                        self.orientation_prob, self.mean_valued_prob, self.mean, self.max_cover_ratio, self.noise_std)
+                img[:, min_x:max_x, min_y:max_y] = mask
 
             # Generate a random scale and rotation
             s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]

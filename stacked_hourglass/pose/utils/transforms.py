@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import os
 import numpy as np
+import random
 import scipy.misc
 import matplotlib.pyplot as plt
 import torch
@@ -176,3 +177,78 @@ def crop(img, center, scale, res, rot=0):
 
     new_img = im_to_torch(scipy.misc.imresize(new_img, res))
     return new_img
+
+
+
+def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob, mean_value,
+                         max_cover_ratio, noise_std):
+    """
+    Generate a random mask for a given image, with some probabilistic probabilities for the mask.
+    We produce a bar that covers the entier width or height of an image. We align it such that the mask
+    covers some of the pose estimates, but not all of it
+
+    :param img: An image of shape (C, W, H) to generate a random mask for
+    :param pts: The (ground truth) joint location for a person in the img 'img'
+    :param mask_prob: The probability that the mask will actually change the image.
+        To "not mask", we provide a "mask" which is identical to the image
+    :param orientation_prob: Probability that the mask will be a vertical bar
+    :param mean_valued_prob: Probability that the mask will be filled with the 'mean value' (rather than gaussian noise)
+    :param max_cover_ratio: the maximum ratio of the bounding box (of the joint positions) the we allow to be covered
+    :param noise_std: The stddev of the gaussian noise added, if the mask is filled with Gaussian noise
+    :return: (x_min, x_max, y_min, y_max), mask. A mask with its bounding box, the mask tensor's
+        shape is (C, x_max-x_min, y_max-y_min).
+    """
+    C, W, H = img.size()
+    joint_x_min, joint_x_max, joint_y_min, joint_y_max = bounding_box(pts)
+
+    # decide whether to mask
+    pr = random.random()
+    if pr > mask_prob:
+        return (0, W, 0, H), img
+
+    # decide how large the mask is (and if it's a horizontal or vertical bar)
+    mask_x_min, mask_x_max, mask_y_min, mask_y_min = 0, 0, 0, 0
+    pr = random.random()
+    if pr < orientation_prob:
+        mask_x_min = int(joint_x_min + (joint_x_max - joint_x_min) * torch.rand())
+        max_width = min((joint_x_max-joint_x_min)*max_cover_ratio, W - mask_x_min)
+        mask_x_max = mask_x_min + max_width * random.random()
+        mask_y_min = 0
+        mask_y_max = H
+    else:
+        mask_x_min = 0
+        mask_x_max = H
+        mask_y_min = int(joint_y_min + (joint_y_max - joint_y_min) * torch.rand())
+        max_height = min((joint_y_max-joint_y_min)*max_cover_ratio, H - mask_y_min)
+        mask_y_max = int(mask_y_min + max_height * random.random())
+
+    # Create a mask, filled with the mean value or with gaussian noise (centered around the mean, and clipped to (-1,1))
+    bbox = (mask_x_min, mask_x_max, mask_y_min, mask_y_max)
+    shape = (C, mask_x_max-mask_x_min, mask_y_max-mask_y_min)
+
+    pr = random.random()
+    if pr < mean_valued_prob:
+        mask = torch.zeros(shape)
+        mask += mean_value
+        return bbox, mask
+    else:
+        mask = torch.normal(mean=torch.zeros(shape)+mean_value, std=noise_std)
+        return bbox, mask
+
+
+
+def bounding_box(pts):
+    """
+    Given some joint positions, return their bounding box
+
+    :param pts: A 16x2 dimension tensor, or 32 dimension tensor that define the joint locations
+    :return: A bounding box around the 2D coords, (x_min, x_max, y_min, y_max)
+    """
+    pts = pts.view(16,2)
+
+    x_min, _ = torch.min(pts[:,0])
+    x_max, _ = torch.max(pts[:,0])
+    y_min, _ = torch.min(pts[:,1])
+    y_max, _ = torch.max(pts[:,1])
+
+    return x_min, x_max, y_min, y_max
