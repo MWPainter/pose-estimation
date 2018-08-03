@@ -79,9 +79,9 @@ def main(args):
 
     # Data loading code
     train_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type)
+                        sigma=args.sigma, label_type=args.label_type, augment_data=args.augment_training_data, args=args)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True,
-                        num_workers=args.workers, pin_memory=True, augment_data=args.augment_training_data, args=args)
+                        num_workers=args.workers, pin_memory=True)
 
     val_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
                         sigma=args.sigma, label_type=args.label_type, train=False, augment_data=False)

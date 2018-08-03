@@ -180,7 +180,7 @@ def crop(img, center, scale, res, rot=0):
 
 
 
-def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob, mean_value,
+def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob, mean_values,
                          max_cover_ratio, noise_std):
     """
     Generate a random mask for a given image, with some probabilistic probabilities for the mask.
@@ -198,6 +198,7 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
     :return: (x_min, x_max, y_min, y_max), mask. A mask with its bounding box, the mask tensor's
         shape is (C, x_max-x_min, y_max-y_min).
     """
+    # Here bounding box means all points p are minx <= p.x < maxx
     C, W, H = img.size()
     joint_x_min, joint_x_max, joint_y_min, joint_y_max = bounding_box(pts)
 
@@ -207,33 +208,37 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
         return (0, W, 0, H), img
 
     # decide how large the mask is (and if it's a horizontal or vertical bar)
+    # be careful to make sure that the min_x isn't at the end of the image, and that width is always >= 1
     mask_x_min, mask_x_max, mask_y_min, mask_y_min = 0, 0, 0, 0
     pr = random.random()
     if pr < orientation_prob:
-        mask_x_min = int(joint_x_min + (joint_x_max - joint_x_min) * torch.rand())
+        mask_x_min = int(joint_x_min + (joint_x_max - joint_x_min - 1) * random.random())
         max_width = min((joint_x_max-joint_x_min)*max_cover_ratio, W - mask_x_min)
-        mask_x_max = mask_x_min + max_width * random.random()
+        mask_x_max = int(mask_x_min + max_width * random.random())
+        mask_x_max = max(mask_x_max, mask_x_min + 1)
         mask_y_min = 0
         mask_y_max = H
     else:
         mask_x_min = 0
-        mask_x_max = H
-        mask_y_min = int(joint_y_min + (joint_y_max - joint_y_min) * torch.rand())
+        mask_x_max = W
+        mask_y_min = int(joint_y_min + (joint_y_max - joint_y_min - 1) * random.random())
         max_height = min((joint_y_max-joint_y_min)*max_cover_ratio, H - mask_y_min)
         mask_y_max = int(mask_y_min + max_height * random.random())
+        mask_y_max = max(mask_y_max, mask_y_min+1)
 
     # Create a mask, filled with the mean value or with gaussian noise (centered around the mean, and clipped to (-1,1))
+    # Had to be funky and make a (C,W,H) mean tensor out of a (C,) mean tensor
     bbox = (mask_x_min, mask_x_max, mask_y_min, mask_y_max)
-    shape = (C, mask_x_max-mask_x_min, mask_y_max-mask_y_min)
+    mask_width = mask_x_max-mask_x_min
+    mask_height = mask_y_max-mask_y_min
 
+    mean = mean_values.repeat((mask_width, mask_height, 1)).permute(2,0,1)
     pr = random.random()
     if pr < mean_valued_prob:
-        mask = torch.zeros(shape)
-        mask += mean_value
-        return bbox, mask
+        mask = mean
     else:
-        mask = torch.normal(mean=torch.zeros(shape)+mean_value, std=noise_std)
-        return bbox, mask
+        mask = torch.normal(mean=mean, std=noise_std)
+    return bbox, mask
 
 
 
@@ -246,9 +251,9 @@ def bounding_box(pts):
     """
     pts = pts.view(16,2)
 
-    x_min, _ = torch.min(pts[:,0])
-    x_max, _ = torch.max(pts[:,0])
-    y_min, _ = torch.min(pts[:,1])
-    y_max, _ = torch.max(pts[:,1])
+    x_min = torch.min(pts[:,1])
+    x_max = torch.max(pts[:,1])
+    y_min = torch.min(pts[:,0])
+    y_max = torch.max(pts[:,0])
 
-    return x_min, x_max, y_min, y_max
+    return int(x_min.item()), int(x_max.item()), int(y_min.item()), int(y_max.item())
