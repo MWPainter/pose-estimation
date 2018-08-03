@@ -51,7 +51,7 @@ class Mpii(data.Dataset):
         if isfile(dataset_specific_cache_file):
             meanstd = torch.load(dataset_specific_cache_file)
             self.mean, self.std = meanstd["mean"], meanstd["stddev"]
-            return
+            return self.mean, self.std
 
         mean = torch.zeros(3)
         std = torch.zeros(3)
@@ -70,6 +70,8 @@ class Mpii(data.Dataset):
             print('    Std:  %.4f, %.4f, %.4f' % (std[0], std[1], std[2]))
 
         # Cache the computation (as it's slow)
+        if not isdir(".cache"):
+            mkdir_p(".cache")
         cache = {"mean": mean, "stddev": std}
         torch.save(cache, ".cache/mpii_meanstd")
 
@@ -112,7 +114,7 @@ class Mpii(data.Dataset):
 
         r = 0
         if self.augment_data:
-
+            # If not, "no_random_masking" then randomly mask the image
 
             # Generate a random scale and rotation
             s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]

@@ -183,6 +183,15 @@ class Options:
         self.parser.add_argument('-d', '--debug', dest='debug', action='store_true',
                             help='show intermediate results')
 
+        # For data augmentation
+        self.parser.add_argument('--augment_training_data', default=True, type=bool, help='Shoudl data be augmented in training?')
+        self.parser.add_argument('--no_random_masking', action='store_true', help='Option to turn of random masking as part of data augmentation (but keep the rest)')
+        self.parser.add_argument('--mask_prob', default=0.5, help='The probability for which to add a mask with random masking')
+        self.parser.add_argument('--orientation_prob', default=0.5, help='The probability a random mask is a vertical bar (rather than horizontal bar)')
+        self.parser.add_argument('--mean_valued_prob', default=0.5, help='The probability for which the mask is mean valued (rather than random noise)')
+        self.parser.add_argument('--max_cover_ratio', default=0.5, help='The maximum ratio that we allow a mask to cover of the bounding around the joint positions')
+        self.parser.add_argument('--noise_std', default=0.2, help='The stddev of the noise to add, if the mask is gaussian noise')
+
         # ===============================================================
         #                     Hourglass data processing options
         # ===============================================================

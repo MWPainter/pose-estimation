@@ -84,7 +84,7 @@ def main(args):
                         num_workers=args.workers, pin_memory=True)
 
     val_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type, train=False)
+                        sigma=args.sigma, label_type=args.label_type, train=False, augment_data=False)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.test_batch_size, shuffle=False,
                         num_workers=args.workers, pin_memory=True)
 
@@ -196,7 +196,7 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False,
 
         # Plot the (noisy) per minibatch loss
         iter = epoch_beg_iter + i
-        writer.add_scalar('data/train_loss_wrt_iter', train_loss, iter)
+        writer.add_scalar('data/train_loss_wrt_iter', loss, iter)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
