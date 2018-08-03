@@ -39,7 +39,7 @@ def main(opt):
     log.save_options(opt, opt.checkpoint_dir)
 
     # Make a summary writer
-    writer = SummaryWriter(log_dir='model_checkpoints/tb')
+    writer = SummaryWriter(log_dir=opt.tb_dir)
 
     # create model
     print(">>> creating model")

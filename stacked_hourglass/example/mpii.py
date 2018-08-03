@@ -53,7 +53,7 @@ def main(args):
                                 weight_decay=args.weight_decay)
 
     # Create a tensorboard writer
-    writer = SummaryWriter(log_dir='model_checkpoints/tb')
+    writer = SummaryWriter(log_dir=args.tb_dir)
 
     # optionally resume from a checkpoint
     title = 'mpii-' + args.arch

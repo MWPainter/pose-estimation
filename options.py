@@ -41,6 +41,7 @@ training_defaults = \
                 "data_dir": "data/2d3d_h36m",
                 "checkpoint_dir": "model_checkpoints",
                 "output_dir": "data/2d3d_output",
+                "tb_dir": "model_checkpoints/2d3d_tb_dir",
 
                 # Training options
                 "epochs": 200,
@@ -56,6 +57,7 @@ training_defaults = \
                 "data_dir": "data/h36m",
                 "checkpoint_dir": "model_checkpoints",
                 "output_dir": "data/hourglass_output",
+                "tb_dir": "model_checkpoints/hourglass_tb_dir",
 
                 # Training options
                 "epochs": 90,
@@ -69,6 +71,7 @@ training_defaults = \
                 "data_dir": "data",
                 "checkpoint_dir": "model_checkpoints",
                 "output_dir": "data",
+                "tb_dir": "model_checkpoints/rand_model_tb_dir",
 
                 # Training options
                 "epochs": 50,
@@ -139,6 +142,7 @@ class Options:
                                  help='dropout probability, 1.0 to make no dropout')
         self.parser.add_argument('--train_batch_size', type=int, default=t_defaults['train_batch_size'])
         self.parser.add_argument('--test_batch_size', type=int, default=t_defaults['test_batch_size'])
+        self.parser.add_argument('--tb_dir', type=str, default=t_defaults["tb_dir"], help="Directory to write tensorboardX summaries.")
 
         # ===============================================================
         #                     run.py specific options
