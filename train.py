@@ -24,7 +24,6 @@ def train_hourglass(options):
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
     options.arch = "hg"
-    options.workers = 1
     hourglass_main(options)
 
 

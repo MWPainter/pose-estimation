@@ -182,6 +182,7 @@ class Options:
                             help='evaluate model on validation set')
         self.parser.add_argument('-d', '--debug', dest='debug', action='store_true',
                             help='show intermediate results')
+        self.parser.add_argument('--workers', default=6, help='The number of workers to use in a data loader (so training it bottelnecked by GPU not CPU')
 
         # For data augmentation
         self.parser.add_argument('--augment_training_data', default=True, type=bool, help='Shoudl data be augmented in training?')

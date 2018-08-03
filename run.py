@@ -21,7 +21,6 @@ def hourglass(options):
 
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
-    options.workers = 1
     run_hourglass(options)
 
 def twod_to_threed(options):
