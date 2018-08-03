@@ -128,8 +128,8 @@ def main(opt):
         loss_test, err_test = test(test_loader, model, criterion, stat_3d, procrustes=opt.procrustes)
 
         # Update tensorboard summaries
-        writer.add_scalars('data/loss', {'train_loss': loss_train, 'test_loss': loss_train})
-        writer.add_scalar('data/validation_error', err_test)
+        writer.add_scalars('data/loss', {'train_loss': loss_train, 'test_loss': loss_train}, epoch)
+        writer.add_scalar('data/validation_error', err_test, epoch)
 
         # update log file
         logger.append([epoch + 1, lr_now, loss_train, loss_test, err_test],
