@@ -106,7 +106,7 @@ def main(args):
 
         # train for one epoch
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, writer,
-                                                    args.debug, args.flip)
+                                                    args.debug, args.flip, args.remove_intermedaite_supervision)
 
         # evaluate on validation set
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,
@@ -137,7 +137,7 @@ def main(args):
     savefig(os.path.join(args.checkpoint_dir, 'log.eps'))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True):
+def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True, remove_intermediate_supervision):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -164,9 +164,11 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False,
         output = model(input_var)
         score_map = output[-1].data.cpu()
 
-        loss = criterion(output[0], target_var)
-        for j in range(1, len(output)):
-            loss += criterion(output[j], target_var)
+        # Add losses (only add final loss if ignoring intermediate supervision) + compute end accuracy
+        loss = criterion(output[len(output)-1], target_var)
+        if not remove_intermediate_supervision:
+            for j in range(len(output)-2, -1, -1):
+                loss += criterion(output[j], target_var)
         acc = accuracy(score_map, target, idx)
 
         if debug: # visualize groundtruth and predictions

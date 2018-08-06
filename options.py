@@ -171,6 +171,7 @@ class Options:
                             help='Number of residual modules at each location in the hourglass')
         self.parser.add_argument('--num-classes', default=16, type=int, metavar='N',
                             help='Number of keypoints')
+        self.parser.add_argument('--remove_intermediate_supervision', action='store_true', help='Remove supervision at the intermediate stages of stacked hourglass modules.')
 
 
         # ===============================================================
