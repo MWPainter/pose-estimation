@@ -12,7 +12,7 @@ import os
 
 
 
-def train_hourglass(options):
+def train_hourglass_mpii(options):
     """
     Script to create a stacked hourglass network, and train it from scratch to make 2D pose estimations.
     Options were taken mostly from from the "twod_threed" code. We've merged the options to make it easier.
@@ -24,7 +24,7 @@ def train_hourglass(options):
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
     options.arch = "hg"
-    hourglass+mpii_main(options)
+    hourglass_mpii_main(options)
 
 
 
