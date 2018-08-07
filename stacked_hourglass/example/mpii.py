@@ -114,9 +114,9 @@ def main(args):
                                                     args.debug, args.flip)
 
         # append logger file, and write to tensorboard summaries
-        writer.add_scalars('data/losses_wrt_epochs', {'train_loss': train_loss, 'test_lost': valid_loss}, epoch)
-        writer.add_scalar('data/train_accuracy', train_acc, epoch)
-        writer.add_scalar('data/test_accuracy', valid_acc, epoch)
+        writer.add_scalars('data/epoch/losses_wrt_epochs', {'train_loss': train_loss, 'test_lost': valid_loss}, epoch)
+        writer.add_scalar('data/epoch/train_accuracy', train_acc, epoch)
+        writer.add_scalar('data/epoch/test_accuracy', valid_acc, epoch)
         logger.append([epoch + 1, lr, train_loss, valid_loss, train_acc, valid_acc])
 
         # remember best acc and save checkpoint
@@ -213,12 +213,12 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False,
             weight_mag = parameter_magnitude(model)
             grad_mag = gradient_magnitude(model)
             update_mag = update_magnitude(model, lr, grad_mag)
-            update_ratio = update_ratio(model, lr, weight_mag, grad_mag)
-            writer.add_scalar('data/train_loss_wrt_iter', loss, iter)
-            writer.add_scalar('data/weight_magnitude', weight_mag, iter)
-            writer.add_scalar('data/gradient_magnitude', grad_mag, iter)
-            writer.add_scalar('data/update_magnitude', update_mag, iter)
-            writer.add_scalar('data/update_ratio', update_ratio, iter)
+            update_rat = update_ratio(model, lr, weight_mag, grad_mag)
+            writer.add_scalar('data/iter/train_loss', loss, iter)
+            writer.add_scalar('data/iter/weight_magnitude', weight_mag, iter)
+            writer.add_scalar('data/iter/gradient_magnitude', grad_mag, iter)
+            writer.add_scalar('data/iter/update_magnitude', update_mag, iter)
+            writer.add_scalar('data/iter/update_ratio', update_rat, iter)
 
 
         # plot progress
