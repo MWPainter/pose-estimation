@@ -26,6 +26,8 @@ import twod_threed.src.log as log
 from twod_threed.src.model import LinearModel, weight_init
 from twod_threed.src.datasets.human36m import Human36M
 
+from stacked_hourglass.pose.utils.osutils import mkdir_p, isdir
+
 from tensorboardX import SummaryWriter
 
 
@@ -39,7 +41,7 @@ def main(opt):
     log.save_options(opt, opt.checkpoint_dir)
 
     # Make a summary writer
-    writer = SummaryWriter(log_dir=opt.tb_dir)
+    writer = SummaryWriter(log_dir="%s/2d3d_h36m_%s_tb_log" % (opt.tb_dir, opt.exp))
 
     # create model
     print(">>> creating model")
@@ -105,13 +107,13 @@ def main(opt):
         dataset=Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg, is_train=False),
         batch_size=opt.test_batch_size,
         shuffle=False,
-        num_workers=opt.job,
+        num_workers=opt.workers,
         pin_memory=True)
     train_loader = DataLoader(
         dataset=Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg),
         batch_size=opt.train_batch_size,
         shuffle=True,
-        num_workers=opt.job,
+        num_workers=opt.workers,
         pin_memory=True)
     print(">>> data loaded !")
 
@@ -136,6 +138,10 @@ def main(opt):
                       ['int', 'float', 'float', 'flaot', 'float'])
 
         # save ckpt
+        model_specific_checkpoint_dir = "%s/2d3d_h36m_%s" % (opt.checkpoint_dir, opt.exp)
+        if not isdir(model_specific_checkpoint_dir):
+            mkdir_p(model_specific_checkpoint_dir)
+
         is_best = err_test < err_best
         err_best = min(err_test, err_best)
         if is_best:
@@ -145,7 +151,7 @@ def main(opt):
                            'err': err_best,
                            'state_dict': model.state_dict(),
                            'optimizer': optimizer.state_dict()},
-                          ckpt_path=opt.checkpoint_dir,
+                          ckpt_path=model_specific_checkpoint_dir,
                           is_best=True)
         else:
             log.save_ckpt({'epoch': epoch + 1,
@@ -154,7 +160,7 @@ def main(opt):
                            'err': err_best,
                            'state_dict': model.state_dict(),
                            'optimizer': optimizer.state_dict()},
-                          ckpt_path=opt.checkpoint_dir,
+                          ckpt_path=model_specific_checkpoint_dir,
                           is_best=False)
 
     logger.close()

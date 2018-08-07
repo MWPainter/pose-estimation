@@ -2,8 +2,9 @@
 from __future__ import print_function, absolute_import, division
 
 # Relative imports
-from stacked_hourglass import run as run_hourglass
-from twod_threed import run as run_twod_to_threed
+from stacked_hourglass import run as run_hourglass_mpii
+from twod_threed import run as run_twod_to_threed_h36m
+import src.data_process as data_process
 
 # Absolute imports
 import sys
@@ -12,7 +13,7 @@ import os
 
 
 
-def hourglass(options):
+def hourglass_mpii(options):
     """
     Script to run a trained hourglass model on an entire dataset.
     options.load: specifies the location of the saved model
@@ -21,9 +22,9 @@ def hourglass(options):
 
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
-    run_hourglass(options)
+    run_hourglass_mpii(options)
 
-def twod_to_threed(options):
+def twod_to_threed_h36m(options):
     """
     Script to run a trained 2D to 3D pose model on an entire dataset.
     options.load: specifies the location of the saved model
@@ -32,7 +33,7 @@ def twod_to_threed(options):
 
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
-    run_twod_to_threed(options)
+    run_twod_to_threed_h36m(options)
 
 
 
@@ -48,9 +49,9 @@ if __name__ == "__main__":
     options = Options(script).parse()
 
     # run the appropriate 'script'
-    if script == "hourglass":
-        hourglass(options)
-    elif script == "2d3d":
-        twod_to_threed(options)
-    elif script == "stitched":
+    if script == "hourglass_mpii":
+        hourglass_mpii(options)
+    elif script == "2d3d_h36m":
+        twod_to_threed_h36m(options)
+    elif script == "stitched_eva":
         raise NotImplementedError()

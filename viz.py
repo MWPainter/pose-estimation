@@ -59,7 +59,7 @@ def visualize_2d_overlay_3d_pred(options):
             if not filename in twod_pose_preds:
                 continue
             twod_overlay = viz_2d_overlay(img, twod_pose_preds[filename])
-            threed_pose_viz = viz_3d_pose(threed_pose_preds[filename])
+            threed_pose_viz = viz_3d_pose(threed_pose_preds[filename], options.data_dir)
             final_img = pack_images([twod_overlay, threed_pose_viz])
             scipy.misc.imsave(os.path.join(output_dir, filename), final_img)
 
@@ -167,9 +167,9 @@ def visualize_2d_pred_3d_gt_3d_pred(options):
     for k2d in twod_pose_ground_truths:
         k3d = get_3d_key_from_2d_key(k2d)
         for t in range(len(twod_pose_ground_truths[k2d])):
-            twod_gt_viz = viz_2d_pose(twod_pose_ground_truths[k2d][t])
-            threed_gt_viz = viz_3d_pose(threed_pose_ground_truths[k3d][t])
-            threed_pred_viz = viz_3d_pose(threed_pose_preds[k2d][t])
+            twod_gt_viz = viz_2d_pose(twod_pose_ground_truths[k2d][t], options.data_dir)
+            threed_gt_viz = viz_3d_pose(threed_pose_ground_truths[k3d][t], options.data_dir)
+            threed_pred_viz = viz_3d_pose(threed_pose_preds[k2d][t], options.data_dir)
 
             final_img = pack_images([twod_gt_viz, threed_gt_viz, threed_pred_viz])
             scipy.misc.imsave(os.path.join(output_dir, str(k2d)+"_"+str(t)+".jpg"), final_img)

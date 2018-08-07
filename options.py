@@ -41,7 +41,7 @@ training_defaults = \
                 "data_dir": "data/2d3d_h36m",
                 "checkpoint_dir": "model_checkpoints",
                 "output_dir": "data/2d3d_output",
-                "tb_dir": "model_checkpoints/2d3d_tb_dir",
+                "tb_dir": "tb_logs/",
 
                 # Training options
                 "epochs": 200,
@@ -57,7 +57,7 @@ training_defaults = \
                 "data_dir": "data/h36m",
                 "checkpoint_dir": "model_checkpoints",
                 "output_dir": "data/hourglass_output",
-                "tb_dir": "model_checkpoints/hourglass_tb_dir",
+                "tb_dir": "tb_logs/",
 
                 # Training options
                 "epochs": 90,
@@ -71,7 +71,7 @@ training_defaults = \
                 "data_dir": "data",
                 "checkpoint_dir": "model_checkpoints",
                 "output_dir": "data",
-                "tb_dir": "model_checkpoints/rand_model_tb_dir",
+                "tb_dir": "tb_logs/",
 
                 # Training options
                 "epochs": 50,
@@ -172,6 +172,7 @@ class Options:
         self.parser.add_argument('--num-classes', default=16, type=int, metavar='N',
                             help='Number of keypoints')
         self.parser.add_argument('--remove_intermediate_supervision', action='store_true', help='Remove supervision at the intermediate stages of stacked hourglass modules.')
+        self.parser.add_argument('--add_attention', action='store_true', help='If we want to use time information via attention mechanism.')
 
 
         # ===============================================================

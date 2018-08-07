@@ -2,8 +2,8 @@
 from __future__ import print_function, absolute_import, division
 
 # Relative imports
-from twod_threed import main as twod_threed_main
-from stacked_hourglass import mpii_main as hourglass_main
+from twod_threed import main as twod_threed_h36m_main
+from stacked_hourglass import mpii_main as hourglass_mpii_main
 
 # Absolute imports
 import sys
@@ -24,17 +24,17 @@ def train_hourglass(options):
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
     options.arch = "hg"
-    hourglass_main(options)
+    hourglass+mpii_main(options)
 
 
 
-def train_twod_to_threed(options):
+def train_twod_to_threed_h36m(options):
     """
     Script to create a stacked hourglass network, and train it from scratch to make 2D pose estimations.
 
     :param options: Options for the training, defined in options.py. (Including defaults).
     """
-    twod_threed_main(options)
+    twod_threed_h36m_main(options)
 
 
 
@@ -48,9 +48,9 @@ if __name__ == "__main__":
     options = Options(script).parse()
 
     # run the appropriate 'script'
-    if script == "hourglass":
-        train_hourglass(options)
-    elif script == "2d3d":
-        train_twod_to_threed(options)
+    if script == "hourglass_mpii":
+        train_hourglass_mpii(options)
+    elif script == "2d3d_h36m":
+        train_twod_to_threed_h36m(options)
     elif script == "stitched":
         raise NotImplementedError()

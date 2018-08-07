@@ -53,7 +53,7 @@ def main(args):
                                 weight_decay=args.weight_decay)
 
     # Create a tensorboard writer
-    writer = SummaryWriter(log_dir=args.tb_dir)
+    writer = SummaryWriter(log_dir="%s/hourglass_mpii_%s_tb_log" % (args.tb_dir, args.exp))
 
     # optionally resume from a checkpoint
     title = 'mpii-' + args.arch
@@ -106,7 +106,7 @@ def main(args):
 
         # train for one epoch
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, writer,
-                                                    args.debug, args.flip, args.remove_intermedaite_supervision)
+                                                    args.debug, args.flip, args.remove_intermediate_supervision)
 
         # evaluate on validation set
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,
@@ -119,6 +119,10 @@ def main(args):
         logger.append([epoch + 1, lr, train_loss, valid_loss, train_acc, valid_acc])
 
         # remember best acc and save checkpoint
+        model_specific_checkpoint_dir = "%s/hourglass_mpii_%s" % (args.checkpoint_dir, args.exp)
+        if not isdir(model_specific_checkpoint_dir):
+            mkdir_p(model_specific_checkpoint_dir)
+
         is_best = valid_acc > best_acc
         best_acc = max(valid_acc, best_acc)
         mean, stddev = train_dataset.get_mean_stddev()
@@ -130,14 +134,15 @@ def main(args):
             'optimizer': optimizer.state_dict(),
             'mean': mean,
             'stddev': stddev,
-        }, predictions, is_best, checkpoint=args.checkpoint_dir)
+        }, predictions, is_best, checkpoint=model_specific_checkpoint_dir)
 
     logger.close()
     logger.plot(['Train Acc', 'Val Acc'])
     savefig(os.path.join(args.checkpoint_dir, 'log.eps'))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True, remove_intermediate_supervision):
+def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True,
+          remove_intermediate_supervision=False):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()

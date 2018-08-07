@@ -82,7 +82,7 @@ class Mpii(data.Dataset):
         if not isdir(".cache"):
             mkdir_p(".cache")
         cache = {"mean": mean, "stddev": std}
-        torch.save(cache, ".cache/mpii_meanstd")
+        torch.save(cache, dataset_specific_cache_file)
 
         return mean, std
 
