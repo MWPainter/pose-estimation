@@ -35,12 +35,12 @@ actions = ["all",
 training_defaults = \
     {
         # for train/run
-        "2d3d":
+        "2d3d_h36m":
             {
                 # General options
-                "data_dir": "data/2d3d_h36m",
+                "data_dir": "",
                 "checkpoint_dir": "model_checkpoints",
-                "output_dir": "data/2d3d_output",
+                "output_dir": "",
                 "tb_dir": "tb_logs/",
 
                 # Training options
@@ -51,12 +51,12 @@ training_defaults = \
             },
 
         # for train/run
-        "hourglass":
+        "hourglass_mpii":
             {
                 # General options
-                "data_dir": "data/h36m",
+                "data_dir": "",
                 "checkpoint_dir": "model_checkpoints",
-                "output_dir": "data/hourglass_output",
+                "output_dir": "",
                 "tb_dir": "tb_logs/",
 
                 # Training options
@@ -252,6 +252,8 @@ class Options:
         # Parse the (known) arguments (with respect to the parser). Provide defaults appropriately
         training_key = self.script_id if self.script_id in training_defaults.keys() else ""
         viz_key = self.script_id if self.script_id in visualize_defaults.keys() else ""
+        print("Using '%s' key for training default params." % training_key)
+        print("Using '%s' key for visualizing default params." % viz_key)
         self._initial(training_defaults[training_key], visualize_defaults[viz_key])
         self.opt, _ = self.parser.parse_known_args()
 

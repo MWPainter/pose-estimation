@@ -118,8 +118,9 @@ class Mpii(data.Dataset):
             s = s * 1.25
 
         # For single-person pose estimation with a centered/scaled figure
+        # TODO: replace load_numpy_image with load_image when numpy hack is no longer neaded + PyTOrch broadcasting works properly
         nparts = pts.size(0)
-        img = load_image(img_path)  # CxHxW
+        img = load_numpy_image(img_path)  # CxHxW
 
         r = 0
         if self.augment_data:
@@ -130,6 +131,9 @@ class Mpii(data.Dataset):
                         self.orientation_prob, self.mean_valued_prob, self.mean, self.max_cover_ratio, self.noise_std)
                 if should_mask:
                     img[:, min_x:max_x, min_y:max_y] = mask
+
+            # TODO: replace load_numpy_image with load_image when numpy hack is no longer neaded + PyTOrch broadcasting works properly
+            img = torch.Tensor(img)
 
             # Generate a random scale and rotation
             s = s*torch.randn(1).mul_(sf).add_(1).clamp(1-sf, 1+sf)[0]
@@ -145,6 +149,9 @@ class Mpii(data.Dataset):
             img[0, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
             img[1, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
             img[2, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
+
+        # TODO: replace load_numpy_image with load_image when numpy hack is no longer neaded + PyTOrch broadcasting works properly
+        img = torch.Tensor(img)
 
         # Prepare image and groundtruth map
         inp = crop(img, c, s, [self.inp_res, self.inp_res], rot=r)

@@ -199,8 +199,11 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
         if we should mask at all. If we return False for "shouldMask" then the caller should ignore the rest of the
         output. The mask tensor's shape is (C, x_max-x_min, y_max-y_min).
     """
+    # TODO: remove when PyTorch bug is fixed
+    mean_values = mean_values.numpy()
+
     # Here bounding box means all points p are minx <= p.x < maxx
-    C, W, H = img.size()
+    C, W, H = img.shape
     joint_x_min, joint_x_max, joint_y_min, joint_y_max = bounding_box(pts)
 
     # decide whether to mask
@@ -214,6 +217,7 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
     pr = random.random()
     if pr < orientation_prob:
         mask_x_min = int(joint_x_min + (joint_x_max - joint_x_min - 1) * random.random())
+        mask_x_min = max(mask_x_min, 0)
         max_width = min((joint_x_max-joint_x_min)*max_cover_ratio, W - mask_x_min)
         mask_x_max = int(mask_x_min + max_width * random.random())
         mask_x_max = max(mask_x_max, mask_x_min + 1)
@@ -223,6 +227,7 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
         mask_x_min = 0
         mask_x_max = W
         mask_y_min = int(joint_y_min + (joint_y_max - joint_y_min - 1) * random.random())
+        mask_y_min = max(mask_y_min, 0)
         max_height = min((joint_y_max-joint_y_min)*max_cover_ratio, H - mask_y_min)
         mask_y_max = int(mask_y_min + max_height * random.random())
         mask_y_max = max(mask_y_max, mask_y_min+1)
@@ -233,12 +238,14 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
     mask_width = mask_x_max-mask_x_min
     mask_height = mask_y_max-mask_y_min
 
-    mean = mean_values.repeat((mask_width, mask_height, 1)).permute(2,0,1)
-    pr = random.random()
+    # TODO: replace with PyTorch again when can
+    mask_shape = (C, mask_width, mask_height)
+    mean_tiled = np.tile(mean_values, (mask_height, mask_width, 1)).transpose((2,1,0))
+    scale_tiled = np.ones(mask_shape) * noise_std
     if pr < mean_valued_prob:
-        mask = mean
+        mask = mean_tiled
     else:
-        mask = torch.normal(mean=mean, std=noise_std)
+        mask = np.random.normal(loc=mean_tiled, scale=scale_tiled)
     return True, bbox, mask
 
 

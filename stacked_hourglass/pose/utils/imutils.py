@@ -23,6 +23,17 @@ def load_image(img_path):
     # H x W x C => C x H x W
     return im_to_torch(scipy.misc.imread(img_path, mode='RGB'))
 
+
+def load_numpy_image(img_path):
+    # H x W x C => C x H x W
+    # and make values floats between 0 and 1
+    numpy_img = scipy.misc.imread(img_path, mode='RGB').astype(np.float)
+    img = np.transpose(numpy_img, (2, 0, 1))
+    if np.max(img) > 1:
+        img /= 255.0
+    return img
+
+
 def resize(img, owidth, oheight):
     img = im_to_numpy(img)
     print('%f %f' % (img.min(), img.max()))
