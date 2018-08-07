@@ -53,3 +53,57 @@ def adjust_learning_rate(optimizer, epoch, lr, schedule, gamma):
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
     return lr
+
+
+def count_parameters(model):
+    """
+    Count the trainable parameters of a model
+    """
+    count = 0
+    for p in model.parameters():
+        if p.requires_grad:
+            count += np.prod(p.size())
+    return count
+
+
+def parameter_magnitude(model):
+    """
+    Computes the (summed, absolute) magnitude of all parameters in a model
+    """
+    mag = 0
+    for p in model.parameters():
+        if p.requires_grad:
+            mag += torch.sum(torch.abs(p.data.cpu()))
+    return mag
+
+def gradient_magnitude(model):
+    """
+    Computes the (summed, absolute) magnitude of the current gradient
+    """
+    mag = 0
+    for p in model.parameters():
+        if p.requires_grad:
+            mag += torch.sum(torch.abs(p.grad.data.cpu()))
+    return mag
+
+
+def update_magnitude(model, lr, grad_magnitude=None):
+    """
+    Computes the magnitude of the current update
+    """
+    if grad_magnitude is None:
+        grad_magnitude = gradient_magnitude(model)
+    return lr * grad_magnitude
+
+
+def update_ratio(model, lr, params_magnitude=None, grad_magnitude=None):
+    """
+    Computes the ratio of the update magnitude relative to the parameter magnitudes
+    We want to keep track of this and make sure that it doesn't get too large (otherwise we have unstable training)
+    """
+    if params_magnitude is None:
+        params_magnitude = parameter_magnitude(model)
+    if grad_magnitude is None:
+        grad_magnitude = gradient_magnitude(model)
+    return lr * grad_magnitude / params_magnitude
+

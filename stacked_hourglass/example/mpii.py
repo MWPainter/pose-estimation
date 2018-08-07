@@ -15,6 +15,7 @@ from stacked_hourglass.pose import Bar
 from stacked_hourglass.pose.utils.logger import Logger, savefig
 from stacked_hourglass.pose.utils.evaluation import accuracy, AverageMeter, final_preds
 from stacked_hourglass.pose.utils.misc import save_checkpoint, save_pred, adjust_learning_rate
+from stacked_hourglass.pose.utils.misc import count_parameters, parameter_magnitude, gradient_magnitude, update_magnitude, update_ratio
 from stacked_hourglass.pose.utils.osutils import mkdir_p, isfile, isdir, join
 from stacked_hourglass.pose.utils.imutils import batch_with_heatmap
 from stacked_hourglass.pose.utils.transforms import fliplr, flip_back
@@ -106,7 +107,7 @@ def main(args):
 
         # train for one epoch
         train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, writer,
-                                                    args.debug, args.flip, args.remove_intermediate_supervision)
+                                                    args.debug, args.flip, args.remove_intermediate_supervision, args.tb_log_freq, lr)
 
         # evaluate on validation set
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,
@@ -142,7 +143,7 @@ def main(args):
 
 
 def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True,
-          remove_intermediate_supervision=False):
+          remove_intermediate_supervision=False, tb_freq=100, lr=1e-3):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -201,13 +202,24 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False,
         loss.backward()
         optimizer.step()
 
-        # Plot the (noisy) per minibatch loss
-        iter = epoch_beg_iter + i
-        writer.add_scalar('data/train_loss_wrt_iter', loss, iter)
-
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
+
+
+        # Plot the (noisy) per minibatch loss once every so often
+        iter = epoch_beg_iter + i
+        if iter % tb_freq == 0:
+            weight_mag = parameter_magnitude(model)
+            grad_mag = gradient_magnitude(model)
+            update_mag = update_magnitude(model, lr, grad_mag)
+            update_ratio = update_ratio(model, lr, weight_mag, grad_mag)
+            writer.add_scalar('data/train_loss_wrt_iter', loss, iter)
+            writer.add_scalar('data/weight_magnitude', weight_mag, iter)
+            writer.add_scalar('data/gradient_magnitude', grad_mag, iter)
+            writer.add_scalar('data/update_magnitude', update_mag, iter)
+            writer.add_scalar('data/update_ratio', update_ratio, iter)
+
 
         # plot progress
         bar.suffix  = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
