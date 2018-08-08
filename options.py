@@ -200,6 +200,9 @@ class Options:
         self.parser.add_argument('--max_cover_ratio', default=0.5, help='The maximum ratio that we allow a mask to cover of the bounding around the joint positions')
         self.parser.add_argument('--noise_std', default=0.2, help='The stddev of the noise to add, if the mask is gaussian noise')
 
+        # What optimizer to use
+        self.parser.add_argument('--use_amsprop', action='store_true', help='If we want to use AMSProp instead of RMSProp for training')
+
         # ===============================================================
         #                     Hourglass data processing options
         # ===============================================================

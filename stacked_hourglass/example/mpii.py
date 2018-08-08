@@ -48,10 +48,16 @@ def main(args):
 
     # define loss function (criterion) and optimizer
     criterion = torch.nn.MSELoss(size_average=True).cuda()
-    optimizer = torch.optim.RMSprop(model.parameters(), 
-                                lr=args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    if not args.use_amsprop:
+        optimizer = torch.optim.RMSprop(model.parameters(),
+                                    lr=args.lr,
+                                    momentum=args.momentum,
+                                    weight_decay=args.weight_decay)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(),
+                                     lr=args.lr,
+                                     weight_decay=args.weight_decay,
+                                     amsgrad=True)
 
     # Create a tensorboard writer
     writer = SummaryWriter(log_dir="%s/hourglass_mpii_%s_tb_log" % (args.tb_dir, args.exp))
@@ -106,8 +112,10 @@ def main(args):
             val_loader.dataset.sigma *=  args.sigma_decay
 
         # train for one epoch
-        train_loss, train_acc = train(train_loader, model, criterion, optimizer, epoch, writer,
-                                                    args.debug, args.flip, args.remove_intermediate_supervision, args.tb_log_freq, lr)
+        train_loss, train_acc = train(train_loader, model=model, criterion=criterion, optimizer=optimizer,
+                                      epcoh=epoch, writer=writer, lr=lr, debug=args.debug, flip=args.flip,
+                                      remove_intermediate_supervision=args.remove_intermediate_supervision,
+                                      tb_freq=args.tb_log_freq)
 
         # evaluate on validation set
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,

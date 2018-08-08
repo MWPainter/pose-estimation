@@ -129,6 +129,7 @@ Models are trained using the following commands:
     - TODO: Finish with default option values/example
 - The following are options that can be given to ANY of the above commands
     - `--workers` The number of workers to use in the PyTorch DataLoader objects. (This is **very important** as training is significantly bottlenecked by the speed of data loading and training can be orders of magnitude slower without this set to >1 (default is 6)).
+    - `--use_amsprop` To train with the [AMSProp](https://openreview.net/pdf?id=ryQu7f-RZ) optimizer
     - TODO: describe general training parameters, such as `--lr`
     - TODO: Direct them to `options.py` for their default values.
 
