@@ -150,8 +150,8 @@ def main(args):
     savefig(os.path.join(args.checkpoint_dir, 'log.eps'))
 
 
-def train(train_loader, model, criterion, optimizer, epoch, writer, debug=False, flip=True,
-          remove_intermediate_supervision=False, tb_freq=100, lr=1e-3):
+def train(train_loader, model, criterion, optimizer, epoch, writer, lr, debug=False, flip=True,
+          remove_intermediate_supervision=False, tb_freq=100):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
