@@ -72,7 +72,8 @@ documents the nested repositories via how they are used. (README.md files for th
     - Renamed `camera.py` to `camaras.py` in `twod_threed/src` to be consistent with files copied from the tensorflow implementation.
 - Factored out code in the Human36m dataset class that translated keys for the 2D data to the keys for the 3D data. 
     (Still unsure why they couldn't just be the same...). File `twod_threed/src/datasets/human36m.py`
-- Added [TensorboardX](https://github.com/lanpa/tensorboardX) for visualizing training curves at runtime.
+- Added [TensorboardX](https://github.com/lanpa/tensorboardX) for visualizing training curves at runtime. 
+- Added code to train using multiple GPUs using [Horovod](https://github.com/uber/horovod) 
 
 ## Data
 

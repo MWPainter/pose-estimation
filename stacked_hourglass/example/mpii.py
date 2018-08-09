@@ -96,7 +96,7 @@ def main(args):
     print('    Total params: %.2fM' % (sum(p.numel() for p in model.parameters())/1000000.0))
 
     # Data loading code
-    train_loader, val_loader = _make_torch_loaders(args)
+    train_loader, val_loader = _make_torch_data_loaders(args)
 
     if args.evaluate:
         print('\nEvaluation only') 
@@ -156,7 +156,7 @@ def main(args):
 
 
 
-def _make_torch_loaders(args):
+def _make_torch_data_loaders(args):
     train_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json',
                                   'stacked_hourglass/data/mpii/images',
                                   sigma=args.sigma, label_type=args.label_type,
@@ -370,7 +370,7 @@ def validate(val_loader, model, criterion, num_classes, debug=False, flip=True):
         # plot progress
         prog_str = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
             batch=i + 1,
-            size=len(train_loader),
+            size=len(val_loader),
             data=data_time.val,
             bt=batch_time.val,
             total=bar.elapsed_td,

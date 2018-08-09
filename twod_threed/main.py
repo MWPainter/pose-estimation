@@ -14,6 +14,8 @@ import torch.optim
 import torch.backends.cudnn as cudnn
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
+import torch.utils.data.distributed
+import horovod.torch as hvd
 
 #from opt import Options
 from twod_threed.src.procrustes import get_transformation
@@ -43,14 +45,25 @@ def main(opt):
     # Make a summary writer
     writer = SummaryWriter(log_dir="%s/2d3d_h36m_%s_tb_log" % (opt.tb_dir, opt.exp))
 
-    # create model
+    # create model and setup horovod
     print(">>> creating model")
     model = LinearModel()
-    model = model.cuda()
+    if opt.use_horovod:
+        hvd.init()
+        torch.cuda.set_device(hvd.local_rank())
+        # args.lr *= hvd.size()
+        model.cuda()
+    else:
+        model = model.cuda()
     model.apply(weight_init)
     print(">>> total params: {:.2f}M".format(sum(p.numel() for p in model.parameters()) / 1000000.0))
-    criterion = nn.MSELoss(size_average=True).cuda()
-    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr)
+
+    criterion = nn.MSELoss(size_average=True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=opt.lr, amsgrad=opt.use_amsprop)
+    if opt.use_horovod:
+        optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters())
+    else:
+        criterion = criterion.cuda()
 
     # load ckpt
     if opt.load:
@@ -103,20 +116,8 @@ def main(opt):
         sys.exit()
 
     # load dadasets for training
-    test_loader = DataLoader(
-        dataset=Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg, is_train=False),
-        batch_size=opt.test_batch_size,
-        shuffle=False,
-        num_workers=opt.workers,
-        pin_memory=True)
-    train_loader = DataLoader(
-        dataset=Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg),
-        batch_size=opt.train_batch_size,
-        shuffle=True,
-        num_workers=opt.workers,
-        pin_memory=True)
+    train_loader, test_loader = _make_torch_data_loaders(opt)
     print(">>> data loaded !")
-
     cudnn.benchmark = True
     for epoch in range(start_epoch, opt.epochs):
         print('==========================')
@@ -167,6 +168,49 @@ def main(opt):
     writer.close()
 
 
+
+
+
+def _make_torch_data_loaders(opt):
+    train_dataset = Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg)
+    test_dataset = Human36M(actions=actions, data_path=opt.data_dir, use_hg=opt.use_hg, is_train=False)
+
+    if opt.use_horovod:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=hvd.size(),
+                                                                        rank=hvd.rank())
+        train_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=opt.train_batch,
+            sampler=train_sampler, # shuffle=True,#sampler=train_sampler,
+            num_workers=args.workers,
+            pin_memory=True)
+        test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset, num_replicas=hvd.size(),
+                                                                      rank=hvd.rank())
+        test_loader = DataLoader(
+            dataset=test_dataset,
+            batch_size=opt.train_batch,
+            sampler=test_sampler, # shuffle=True,#sampler=train_sampler,
+            num_workers=args.workers,
+            pin_memory=True)
+    else:
+        train_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=opt.train_batch_size,
+            shuffle=True,
+            num_workers=opt.workers,
+            pin_memory=True)
+        test_loader = DataLoader(
+            dataset=test_dataset,
+            batch_size=opt.test_batch_size,
+            shuffle=False,
+            num_workers=opt.workers,
+            pin_memory=True)
+    return train_loader, test_loader
+
+
+
+
+
 def train(train_loader, model, criterion, optimizer,
           lr_init=None, lr_now=None, glob_step=None, lr_decay=None, gamma=None,
           max_norm=True):
@@ -209,9 +253,20 @@ def train(train_loader, model, criterion, optimizer,
                     eta=bar.eta_td,
                     loss=losses.avg)
         bar.next()
+        if opt.use_horovod:
+            print('({batch}/{size}) | batch: {batchtime:.4}ms | Total: {ttl} | ETA: {eta:} | loss: {loss:.4f}' \
+                    .format(batch=i + 1,
+                            size=len(train_loader),
+                            batchtime=batch_time * 10.0,
+                            ttl=bar.elapsed_td,
+                            eta=bar.eta_td,
+                            loss=losses.avg))
 
     bar.finish()
     return glob_step, lr_now, losses.avg
+
+
+
 
 
 def test(test_loader, model, criterion, stat_3d, procrustes=False):
@@ -285,6 +340,9 @@ def test(test_loader, model, criterion, stat_3d, procrustes=False):
     bar.finish()
     print (">>> error: {} <<<".format(ttl_err))
     return losses.avg, ttl_err
+
+
+
 
 
 if __name__ == "__main__":
