@@ -10,6 +10,8 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torchvision.datasets as datasets
+import torch.utils.data.distributed
+import horovod.torch as hvd
 
 from stacked_hourglass.pose import Bar
 from stacked_hourglass.pose.utils.logger import Logger, savefig
@@ -44,7 +46,14 @@ def main(args):
     print("==> creating model '{}', stacks={}, blocks={}".format(args.arch, args.stacks, args.blocks))
     model = models.__dict__[args.arch](num_stacks=args.stacks, num_blocks=args.blocks, num_classes=args.num_classes)
 
-    model = torch.nn.DataParallel(model).cuda()
+    # setup horovod and model for parallel execution
+    if args.use_horovod:
+        hvd.init()
+        torch.cuda.set_device(hvd.local_rank())
+        # args.lr *= hvd.size()
+        model.cuda()
+    else:
+        model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
     criterion = torch.nn.MSELoss(size_average=True).cuda()
@@ -58,6 +67,8 @@ def main(args):
                                      lr=args.lr,
                                      weight_decay=args.weight_decay,
                                      amsgrad=True)
+    if args.use_horovod:
+        optimizer = hvd.DistributedOptimizer(optimizer, named_parameters=model.named_parameters())
 
     # Create a tensorboard writer
     writer = SummaryWriter(log_dir="%s/hourglass_mpii_%s_tb_log" % (args.tb_dir, args.exp))
@@ -85,15 +96,7 @@ def main(args):
     print('    Total params: %.2fM' % (sum(p.numel() for p in model.parameters())/1000000.0))
 
     # Data loading code
-    train_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type, augment_data=args.augment_training_data, args=args)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True,
-                        num_workers=args.workers, pin_memory=True)
-
-    val_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type, train=False, augment_data=False)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.test_batch_size, shuffle=False,
-                        num_workers=args.workers, pin_memory=True)
+    train_loader, val_loader = _make_torch_loaders(args)
 
     if args.evaluate:
         print('\nEvaluation only') 
@@ -113,7 +116,7 @@ def main(args):
 
         # train for one epoch
         train_loss, train_acc = train(train_loader, model=model, criterion=criterion, optimizer=optimizer,
-                                      epcoh=epoch, writer=writer, lr=lr, debug=args.debug, flip=args.flip,
+                                      epoch=epoch, writer=writer, lr=lr, debug=args.debug, flip=args.flip,
                                       remove_intermediate_supervision=args.remove_intermediate_supervision,
                                       tb_freq=args.tb_log_freq)
 
@@ -148,6 +151,45 @@ def main(args):
     logger.close()
     logger.plot(['Train Acc', 'Val Acc'])
     savefig(os.path.join(args.checkpoint_dir, 'log.eps'))
+
+
+
+
+
+def _make_torch_loaders(args):
+    train_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json',
+                                  'stacked_hourglass/data/mpii/images',
+                                  sigma=args.sigma, label_type=args.label_type,
+                                  augment_data=args.augment_training_data, args=args)
+
+    val_dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json',
+                                'stacked_hourglass/data/mpii/images',
+                                sigma=args.sigma, label_type=args.label_type, train=False, augment_data=False, args=args)
+
+    if args.use_horovod:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, num_replicas=hvd.size(),
+                                                                        rank=hvd.rank())
+        train_loader = torch.utils.data.DataLoader(train_dataset,
+                                                   batch_size=args.train_batch, sampler=train_sampler,
+                                                   # shuffle=True,#sampler=train_sampler,
+                                                   num_workers=args.workers, pin_memory=True)
+        val_sampler = torch.utils.data.distributed.DistributedSampler(val_dataset, num_replicas=hvd.size(),
+                                                                      rank=hvd.rank())
+        val_loader = torch.utils.data.DataLoader(val_dataset,
+                                                 batch_size=args.test_batch, sampler=val_sampler,
+                                                 # shuffle=False, #sampler=val_sampler,
+                                                 num_workers=args.workers, pin_memory=True)
+    else:
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True,
+                                                   num_workers=args.workers, pin_memory=True)
+
+        val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.test_batch_size, shuffle=False,
+                                                 num_workers=args.workers, pin_memory=True)
+
+    return train_loader, val_loader
+
+
+
 
 
 def train(train_loader, model, criterion, optimizer, epoch, writer, lr, debug=False, flip=True,
@@ -230,7 +272,7 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, lr, debug=Fa
 
 
         # plot progress
-        bar.suffix  = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
+        prog_str = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
                     batch=i + 1,
                     size=len(train_loader),
                     data=data_time.val,
@@ -240,10 +282,18 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, lr, debug=Fa
                     loss=losses.avg,
                     acc=acces.avg
                     )
+        bar.suffix = prog_str
         bar.next()
+
+        # Progress bar seems to not work with horovod?
+        if args.use_horovod and hvd.rank() == 0:
+            print(prog_str)
 
     bar.finish()
     return losses.avg, acces.avg
+
+
+
 
 
 def validate(val_loader, model, criterion, num_classes, debug=False, flip=True):
@@ -318,20 +368,28 @@ def validate(val_loader, model, criterion, num_classes, debug=False, flip=True):
         end = time.time()
 
         # plot progress
-        bar.suffix  = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
-                    batch=i + 1,
-                    size=len(val_loader),
-                    data=data_time.val,
-                    bt=batch_time.avg,
-                    total=bar.elapsed_td,
-                    eta=bar.eta_td,
-                    loss=losses.avg,
-                    acc=acces.avg
-                    )
+        prog_str = '({batch}/{size}) Data: {data:.6f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | Acc: {acc: .4f}'.format(
+            batch=i + 1,
+            size=len(train_loader),
+            data=data_time.val,
+            bt=batch_time.val,
+            total=bar.elapsed_td,
+            eta=bar.eta_td,
+            loss=losses.avg,
+            acc=acces.avg
+        )
+        bar.suffix = prog_str
         bar.next()
+
+        # Progress bar seems to not work with horovod?
+        if args.use_horovod and hvd.rank() == 0:
+            print(prog_str)
 
     bar.finish()
     return losses.avg, acces.avg, predictions
+
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')

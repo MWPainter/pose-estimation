@@ -57,6 +57,7 @@ documents the nested repositories via how they are used. (README.md files for th
 - (Re) Added caching of dataset statistics, defaulting to the `.cache` directory.
 - Factored out data augmentation in the MPII dataset to be specified using a seperate option than if it's the training/validation set. So that we can visualize the training set properly.
 - Added optional random masking to MPII dataset. Used in `stacked_hourglass/pose/dataset/mpii.py` and implemented in `stacked_hourglass/pose/utils/transforms.py`, and theresfore the Human Eva I dataset too (as that was copied). 
+- Added code to train using multiple GPUs using [Horovod](https://github.com/uber/horovod) 
 
 ### 2D to 3D code
 - Original repo from [https://github.com/weigq/3d_pose_baseline_pytorch](https://github.com/weigq/3d_pose_baseline_pytorch)

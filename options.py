@@ -144,6 +144,7 @@ class Options:
         self.parser.add_argument('--test_batch_size', type=int, default=t_defaults['test_batch_size'])
         self.parser.add_argument('--tb_dir', type=str, default=t_defaults["tb_dir"], help="Directory to write tensorboardX summaries.")
         self.parser.add_argument('--tb_log_freq', type=int, default=100, help='How frequently to update tensorboard summaries (num of iters per update).')
+        self.parser.add_argument('--use_horovod', action='store_true', help='Use to specify if horovod should be used to train on multiple GPUs concurrently.')
 
         # ===============================================================
         #                     run.py specific options
