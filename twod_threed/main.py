@@ -127,7 +127,7 @@ def main(opt):
         glob_step, lr_now, loss_train = train(
             train_loader, model, criterion, optimizer,
             lr_init=opt.lr, lr_now=lr_now, glob_step=glob_step, lr_decay=opt.lr_decay, gamma=opt.lr_gamma,
-            max_norm=opt.max_norm)
+            max_norm=opt.max_norm, no_grad_clipping=opt.no_grad_clipping, grad_clip=opt.grad_clip)
         loss_test, err_test = test(test_loader, model, criterion, stat_3d, procrustes=opt.procrustes)
 
         # Update tensorboard summaries
@@ -213,7 +213,7 @@ def _make_torch_data_loaders(opt):
 
 def train(train_loader, model, criterion, optimizer,
           lr_init=None, lr_now=None, glob_step=None, lr_decay=None, gamma=None,
-          max_norm=True):
+          no_grad_clipping=False, grad_clip=10.0):
     losses = utils.AverageMeter()
 
     model.train()
@@ -236,8 +236,8 @@ def train(train_loader, model, criterion, optimizer,
         loss = criterion(outputs, targets)
         losses.update(loss.data[0], inputs.size(0))
         loss.backward()
-        if max_norm:
-            nn.utils.clip_grad_norm(model.parameters(), max_norm=1)
+        if not no_grad_clipping:
+            nn.utils.clip_grad_norm(model.parameters(), max_norm=grad_clip)
         optimizer.step()
 
         # update summary

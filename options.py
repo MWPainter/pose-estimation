@@ -142,6 +142,8 @@ class Options:
                                  help='dropout probability, 1.0 to make no dropout')
         self.parser.add_argument('--train_batch_size', type=int, default=t_defaults['train_batch_size'])
         self.parser.add_argument('--test_batch_size', type=int, default=t_defaults['test_batch_size'])
+        self.parser.add_argument('--no_grad_clipping', action='store_true', help='Option to turn off gradient clipping if need be')
+        self.parser.add_argument('--grad_clip', type=float, default=10.0, help='Value to clip gradients to')
         self.parser.add_argument('--tb_dir', type=str, default=t_defaults["tb_dir"], help="Directory to write tensorboardX summaries.")
         self.parser.add_argument('--tb_log_freq', type=int, default=100, help='How frequently to update tensorboard summaries (num of iters per update).')
         self.parser.add_argument('--use_horovod', action='store_true', help='Use to specify if horovod should be used to train on multiple GPUs concurrently.')

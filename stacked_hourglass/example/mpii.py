@@ -118,7 +118,8 @@ def main(args):
         train_loss, train_acc = train(train_loader, model=model, criterion=criterion, optimizer=optimizer,
                                       epoch=epoch, writer=writer, lr=lr, debug=args.debug, flip=args.flip,
                                       remove_intermediate_supervision=args.remove_intermediate_supervision,
-                                      tb_freq=args.tb_log_freq)
+                                      tb_freq=args.tb_log_freq, no_grad_clipping=args.no_grad_clipping,
+                                      grad_clip=args.grad_clip)
 
         # evaluate on validation set
         valid_loss, valid_acc, predictions = validate(val_loader, model, criterion, args.num_classes,
@@ -193,7 +194,7 @@ def _make_torch_data_loaders(args):
 
 
 def train(train_loader, model, criterion, optimizer, epoch, writer, lr, debug=False, flip=True,
-          remove_intermediate_supervision=False, tb_freq=100):
+          remove_intermediate_supervision=False, tb_freq=100, no_grad_clipping=False, grad_clip=10.0):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -250,6 +251,8 @@ def train(train_loader, model, criterion, optimizer, epoch, writer, lr, debug=Fa
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
+        if not no_grad_clipping:
+            nn.utils.clip_grad_norm(model.parameters(), max_norm=grad_clip)
         optimizer.step()
 
         # measure elapsed time
