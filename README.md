@@ -91,9 +91,8 @@ implement the changes we wanted.
     such a case, output is of shape (batch_size, num_joints, 3). Changes are found in `twod_threed/src/model.py`'s 
     forward function. 
 - Used vizualisation code from the original tensorflow implmentation: [https://github.com/una-dinosauria/3d-pose-baseline](https://github.com/una-dinosauria/3d-pose-baseline).
-    - Copied files to `twod_threed/src/viz.py` and `twod_threed/src/data_utils.py`
+    - Copied files to `twod_threed/src/viz.py` and `utils/data_utils.py`
     - Both files are edited to work directly out of stacked hourglass/MPII format of joint co-ordinates.
-    - Renamed `camera.py` to `camaras.py` in `twod_threed/src` to be consistent with files copied from the tensorflow implementation.
 - Factored out code in the Human36m dataset class that translated keys for the 2D data to the keys for the 3D data. 
     (Still unsure why they couldn't just be the same...). File `twod_threed/src/datasets/human36m.py`
 - Added [TensorboardX](https://github.com/lanpa/tensorboardX) for visualizing training curves at runtime. 
