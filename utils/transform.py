@@ -7,23 +7,33 @@ import torch
 h36m_to_mpii_idx = [3, 2, 1, 4, 5, 6, 0, 7, 8, 9, 15, 14, 13, 10, 11, 12]
 
 
+def mpii_to_h36m_joints_single(joints):
+    """
+    Transform a single set of joints according to 'mpii_to_h36m_joints'
+
+    :param joints: Either a 16x2 2D vector (torch.Tensor) or a 32 1D vector, representing 16 MPII indexed joints
+    :return: Either a 16x2 2D vector (torch.Tensor), representing 16 Human3.6m indexed joints
+    """
+    return mpii_to_h36m_joints(joints.unsqueeze_(0)).squeeze()
+
+
 
 def mpii_to_h36m_joints(joints):
     """
     Transform points that are indexed in the mpii format, and convert them to the h36m format. This function
     works by using "integer array indexing" from https://docs.scipy.org/doc/numpy-1.13.0/reference/arrays.indexing.html
 
-    :param joints: Either a 16x2 2D vector (torch.Tensor) or a 32 1D vector, representing 16 MPII indexed joints
+    :param joints: Either a batch of 16x2 2D vector (torch.Tensor) or a 32 1D vector, representing 16 MPII indexed joints
     :return: Either a 16x2 2D vector (torch.Tensor), representing 16 Human3.6m indexed joints
     """
-    reshape_req = points.dim() == 1
+    reshape_req = joints.dim() == 2
     if reshape_req:
-        joints = points.view((16,2))
+        joints = joints.view((-1,16,2))
 
-    h36m_joints = joints[h36m_to_mpii_idx]
+    h36m_joints = joints[:, h36m_to_mpii_idx]
 
     if reshape_req:
-        h36m_joints = h36m_joints.view((32,))
+        h36m_joints = h36m_joints.view((-1,32))
 
     return h36m_joints
 

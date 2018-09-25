@@ -10,6 +10,16 @@ colors = [[255, 0, 0],      [255, 85, 0],       [255, 170, 0],  # colors to use 
           [255,0,255]]
 
 def visualize(oriImg, points):
+    """
+    Given an image as a numpy array with shape (width, height, depth), overlay a 2D skeleton, specified by the
+    points 'points'.
+
+    Joint indices are determined by the MPII format, and is why the 'pa' parent list above is hard coded.
+
+    :param oriImg: An image to overlay a skeleton on
+    :param points: A numpy array of 2D points (ordered according to MPII data) to plot ontop of the image 'oriImg'
+    :return: The original image, with skeleton painted ontop of it. Numpy array of the same dimensions as 'oriImg'
+    """
     import matplotlib
     import cv2 as cv
     import matplotlib.pyplot as plt
@@ -32,5 +42,5 @@ def visualize(oriImg, points):
             cv.line(canvas, (x1, y1), (x2, y2), colors[child], linewidth)
 
     # return the original image with the overlay
-    #return canvas[:, :, [2, 1, 0]]
+    # return canvas[:, :, [2, 1, 0]]
     return canvas

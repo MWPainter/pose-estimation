@@ -11,9 +11,10 @@ import torch.optim
 
 from stacked_hourglass.pose import Bar
 # from stacked_hourglass.pose.utils.logger import Logger, savefig
-from stacked_hourglass.pose.utils.evaluation import accuracy, AverageMeter, final_preds
+from stacked_hourglass.pose.models import HourglassNet
+from stacked_hourglass.pose.utils.evaluation import final_preds
 # from stacked_hourglass.pose.utils.misc import save_checkpoint, save_pred, adjust_learning_rate
-from .osutils import mkdir_p, isfile, isdir, join
+from utils.osutils import mkdir_p, isfile, isdir, join
 # from stacked_hourglass.pose.utils.imutils import batch_with_heatmap
 # from stacked_hourglass.pose.utils.transforms import fliplr, flip_back
 from .. import models
@@ -55,19 +56,24 @@ def _load_model_and_dataset(model_file, data_input_dir, args):
         and the dataset object
     """
     # Make the model
-    model = models.__dict__['hg'](num_stacks=args.stacks, num_blocks=args.blocks, num_classes=args.num_classes)
-    model = torch.nn.DataParallel(model).cuda()
+    model = HourglassNet(num_stacks=args.stacks, num_blocks=args.blocks, num_classes=args.num_classes,
+                         batch_norm_momentum=args.batch_norm_momentum, use_layer_norm=args.use_layer_norm, width=256, height=256)
+    model = model.cuda()
 
     # Load in weights from checkpoint + set in eval mode
     checkpoint = torch.load(model_file)
-    model.load_state_dict(checkpoint['state_dict'])
+    state_dict = {}
+    for key in checkpoint['state_dict']:
+        new_key = key[len("module."):] if key.startswith("module.") else key
+        state_dict[new_key] = checkpoint['state_dict'][key]
+    model.load_state_dict(state_dict)
     model.eval()
 
     # create the dataset, NOT in train mode, and load the mean and stddev (if not a pre-trained model)
     mean = checkpoint['mean'] if 'mean' in checkpoint else None
     stddev = checkpoint['stddev'] if 'stddev' in checkpoint else None
     dataset = datasets.Mpii('stacked_hourglass/data/mpii/mpii_annotations.json', 'stacked_hourglass/data/mpii/images',
-                        sigma=args.sigma, label_type=args.label_type, augment_data=False, mean=mean, stddev=stddev)
+                        sigma=args.sigma, label_type=args.label_type, augment_data=False, train=args.run_with_train, mean=mean, stddev=stddev, args=args)
 
     # if the model is pre-trained, then the mean/stddev caching was done differently (so cache it!)
     if 'mean' not in checkpoint or 'stddev' not in checkpoint:
@@ -80,12 +86,15 @@ def _load_model_and_dataset(model_file, data_input_dir, args):
 
 def _run_model(model, dataset):
     """
-    Run a trained model on an entire dataset
+    Run a trained model on an entire dataset. (Run's with a batch size of one for now).
 
     :param model: PyTorch nn.Module object for the trained Stacked Hourglass network
     :param dataset: The input dataset to run the model on.
     :return: PyTorch Dataset object of 2D pose predictions
     """
+    # Make sure model is in eval mode
+    model.eval()
+
     # Placeholder dictionarys for predictions and ground truths
     predictions = {}
     ground_truths = {}

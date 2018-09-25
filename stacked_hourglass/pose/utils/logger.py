@@ -10,10 +10,17 @@ import matplotlib.pyplot as plt
 __all__ = ['Logger', 'LoggerMonitor', 'savefig']
 
 def savefig(fname, dpi=None):
+    """
+    Save an open matplotlib figure
+    """
     dpi = 150 if dpi == None else dpi
     plt.savefig(fname, dpi=dpi)
     
 def plot_overlap(logger, names=None):
+    """
+    Plot lots of graphs from the logger 'logger'.
+    Michael: Didn't really use/look into this function.
+    """
     names = logger.names if names == None else names
     numbers = logger.numbers
     for _, name in enumerate(names):
@@ -22,7 +29,9 @@ def plot_overlap(logger, names=None):
     return [logger.title + '(' + name + ')' for name in names]
 
 class Logger(object):
-    '''Save training process to log file with simple plot function.'''
+    '''
+    Save training process to log file with simple plot function.
+    '''
     def __init__(self, fpath, title=None, resume=False): 
         self.file = None
         self.resume = resume
@@ -46,6 +55,9 @@ class Logger(object):
                 self.file = open(fpath, 'w')
 
     def set_names(self, names):
+        """
+        Set the names of the things that are being logged.
+        """
         if self.resume: 
             pass
         # initialize numbers as empty list
@@ -60,6 +72,10 @@ class Logger(object):
 
 
     def append(self, numbers):
+        """
+        Append a value to the list of numbers being logged. Writes the values to the log file.
+        numbers[i] should be a value for self.names[i]
+        """
         assert len(self.names) == len(numbers), 'Numbers do not match names'
         for index, num in enumerate(numbers):
             self.file.write("{0:.6f}".format(num))
@@ -68,7 +84,10 @@ class Logger(object):
         self.file.write('\n')
         self.file.flush()
 
-    def plot(self, names=None):   
+    def plot(self, names=None):
+        """
+        Plot the sequence of values with matplotlib.
+        """
         names = self.names if names == None else names
         numbers = self.numbers
         for _, name in enumerate(names):
@@ -78,11 +97,16 @@ class Logger(object):
         plt.grid(True)
 
     def close(self):
+        """
+        Close the logger. (Closes the open session with the file).
+        """
         if self.file is not None:
             self.file.close()
 
 class LoggerMonitor(object):
-    '''Load and visualize multiple logs.'''
+    '''
+    Load and visualize multiple logs.
+    '''
     def __init__ (self, paths):
         '''paths is a distionary with {name:filepath} pair'''
         self.loggers = []

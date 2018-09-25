@@ -3,6 +3,9 @@
 
 
 class AverageMeter(object):
+    """
+    Object to perform averaging.
+    """
     def __init__(self):
         self.val = 0
         self.avg = 0
@@ -17,6 +20,9 @@ class AverageMeter(object):
 
 
 def lr_decay(optimizer, step, lr, decay_step, gamma):
+    """
+    Compute the learning rate, given decay parameters, the initial learning rate and the current step.
+    """
     lr = lr * gamma ** (step/decay_step)
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr

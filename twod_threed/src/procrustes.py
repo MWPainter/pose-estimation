@@ -3,6 +3,9 @@ import numpy as np
 
 
 def get_transformation(X, Y, compute_optimal_scale=False):
+    """
+    Implemntation of the procrustes function in matlab
+    """
     muX = X.mean(0)
     muY = Y.mean(0)
 

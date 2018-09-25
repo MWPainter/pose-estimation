@@ -3,8 +3,8 @@ from __future__ import print_function, absolute_import, division
 
 # Relative imports
 from stacked_hourglass import run as run_hourglass_mpii
+from stitched import run as run_stitched_mpii
 from twod_threed import run as run_twod_to_threed_h36m
-import src.data_process as data_process
 
 # Absolute imports
 import sys
@@ -24,6 +24,8 @@ def hourglass_mpii(options):
     """
     run_hourglass_mpii(options)
 
+
+
 def twod_to_threed_h36m(options):
     """
     Script to run a trained 2D to 3D pose model on an entire dataset.
@@ -37,8 +39,22 @@ def twod_to_threed_h36m(options):
 
 
 
-    :return: PyTorch Dataset object of 2D pose predictions
-        # Get info about the file
+def stitched_mpii(options):
+    """
+    Script to run trained models for stacked hourglass and 3D baseline, stitched together using a soft argmax
+    options.load_hourglass: specifies a file containing the saved stacked hourglass model
+    options.load_2d3d: specifies a file containing the saved 3D baseline model
+    options.output_dir: specifies a location to output the 2D and 3D predictions made by the network
+
+    :param options: Options for the training, defined in options.py. (Including defaults).
+    """
+    run_stitched_mpii(options)
+
+
+
+
+
+
 if __name__ == "__main__":
     # Check that a script was specified
     if len(sys.argv) < 2:
@@ -53,5 +69,5 @@ if __name__ == "__main__":
         hourglass_mpii(options)
     elif script == "2d3d_h36m":
         twod_to_threed_h36m(options)
-    elif script == "stitched_eva":
-        raise NotImplementedError()
+    elif script == "stitched_mpii":
+        stitched_mpii(options)

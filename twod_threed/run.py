@@ -11,7 +11,7 @@ import torch.optim
 from twod_threed.src.model import LinearModel, weight_init
 from twod_threed.src.datasets.human36m import Human36M
 
-from stacked_hourglass.pose.utils.osutils import mkdir_p, isfile, isdir, join
+from utils.osutils import mkdir_p, isfile, isdir, join
 
 
 
@@ -83,8 +83,6 @@ def _run_model(model, data_input_dir, process_as_video):
         i += 1
 
         input_tensor = torch.Tensor(dataset[key])
-        # TODO: remove this (temporarily dealing with an old0 bug where we output shape (1,16,2) rather than (16,2) in run.py "hourglass"
-        input_tensor = torch.squeeze(input_tensor)
 
         if process_as_video:
             predictions[key] = _run_model_video(model, input_tensor)

@@ -12,6 +12,9 @@ from .imutils import *
 
 
 def color_normalize(x, mean, std):
+    """
+    Normalize an image 'x' w.r.t. color
+    """
     if x.size(0) == 1:
         x = x.repeat(3, 1, 1)
 
@@ -19,10 +22,18 @@ def color_normalize(x, mean, std):
         t.sub_(m)
     return x
 
+def color_denormalize(x, mean, std):
+    """
+    Denormalize an image 'x' w.r.t. color
+    """
+    for t, m, s in zip(x, mean, std):
+        t.add_(m)
+    return x
+
 
 def flip_back(flip_output, dataset='mpii'):
     """
-    flip output map
+    Flip back the joints output from the network. (Inverse of shufflelr below).
     """
     if dataset ==  'mpii':
         matchedParts = (
@@ -46,7 +57,8 @@ def flip_back(flip_output, dataset='mpii'):
 
 def shufflelr(x, width, dataset='mpii'):
     """
-    flip coords
+    Computing the joint locations when the image is being flipped. (Right arm becomes left arm,
+    and coordinates flip too).
     """
     if dataset ==  'mpii':
         matchedParts = (
@@ -69,6 +81,9 @@ def shufflelr(x, width, dataset='mpii'):
 
 
 def fliplr(x):
+    """
+    Perform a horizontal flip of an image (as a numpy ndarray).
+    """
     if x.ndim == 3:
         x = np.transpose(np.fliplr(np.transpose(x, (0, 2, 1))), (0, 2, 1))
     elif x.ndim == 4:
@@ -79,7 +94,9 @@ def fliplr(x):
 
 def get_transform(center, scale, res, rot=0):
     """
-    General image processing functions
+    General image processing functions.
+    Computes a matrix that applies scaling and rotation around the point 'center'. It also reduces the output to the
+    resolution 'res'.
     """
     # Generate transformation matrix
     h = 200 * scale
@@ -108,6 +125,12 @@ def get_transform(center, scale, res, rot=0):
 
 
 def transform(pt, center, scale, res, invert=0, rot=0):
+    """
+    Transform point 'pt'. Scaled by 'scale' and rotated by 'rot' around the point 'center'. Accounting also for
+    reducing the resolution to 'res'.
+
+    'invert' can be set to true, to apply the inverse of the transform specified here.
+    """
     # Transform pixel location to different reference
     t = get_transform(center, scale, res, rot=rot)
     if invert:
@@ -118,6 +141,10 @@ def transform(pt, center, scale, res, invert=0, rot=0):
 
 
 def transform_preds(coords, center, scale, res):
+    """
+    Transforms the joint coordinates by a scaling around the point 'center', and maps the coordinates to resolution
+    'res'.
+    """
     # size = coords.size()
     # coords = coords.view(-1, coords.size(-1))
     # print(coords.size())
@@ -127,6 +154,16 @@ def transform_preds(coords, center, scale, res):
 
 
 def crop(img, center, scale, res, rot=0):
+    """
+    Performs standard data augmentation to an image 'img'.
+
+    :param img: An arbitrary sized image to
+    :param center: The center of the image (to crop around)
+    :param scale: The scale to resize the image by
+    :param res: The resolution '(width, height)' of the output image
+    :param rot: The amount of rotation to apply to the input
+    :return: An (possibly augmented) image, to be used for input to the stacked hourglass network.
+    """
     img = im_to_numpy(img)
 
     # Preprocessing for efficient cropping
@@ -199,7 +236,6 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
         if we should mask at all. If we return False for "shouldMask" then the caller should ignore the rest of the
         output. The mask tensor's shape is (C, x_max-x_min, y_max-y_min).
     """
-    # TODO: remove when PyTorch bug is fixed
     mean_values = mean_values.numpy()
 
     # Here bounding box means all points p are minx <= p.x < maxx
@@ -238,7 +274,6 @@ def generate_random_mask(img, pts, mask_prob, orientation_prob, mean_valued_prob
     mask_width = mask_x_max-mask_x_min
     mask_height = mask_y_max-mask_y_min
 
-    # TODO: replace with PyTorch again when can
     mask_shape = (C, mask_width, mask_height)
     mean_tiled = np.tile(mean_values, (mask_height, mask_width, 1)).transpose((2,1,0))
     scale_tiled = np.ones(mask_shape) * noise_std

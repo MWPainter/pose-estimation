@@ -8,11 +8,19 @@ import scipy.misc
 from .misc import *
 
 def im_to_numpy(img):
+    """
+    Convert an img from pytorch to numpy. Importantly, torch uses (channels, height, width) but numpy uses
+    (height, width, channels) for it's dimensions
+    """
     img = to_numpy(img)
     img = np.transpose(img, (1, 2, 0)) # H*W*C
     return img
 
 def im_to_torch(img):
+    """
+    Convert an img from numpy to pytorch. Importantly, torch uses (channels, height, width) but numpy uses
+    (height, width, channels) for it's dimensions
+    """
     img = np.transpose(img, (2, 0, 1)) # C*H*W
     img = to_torch(img).float()
     if img.max() > 1:
@@ -20,11 +28,17 @@ def im_to_torch(img):
     return img
 
 def load_image(img_path):
+    """
+    Load an image as a pytorch tensor
+    """
     # H x W x C => C x H x W
     return im_to_torch(scipy.misc.imread(img_path, mode='RGB'))
 
 
 def load_numpy_image(img_path):
+    """
+    Load an image as a numpy ndarray
+    """
     # H x W x C => C x H x W
     # and make values floats between 0 and 1
     numpy_img = scipy.misc.imread(img_path, mode='RGB').astype(np.float)
@@ -35,6 +49,9 @@ def load_numpy_image(img_path):
 
 
 def resize(img, owidth, oheight):
+    """
+    Resize 'img', a pytorch tensor.
+    """
     img = im_to_numpy(img)
     print('%f %f' % (img.min(), img.max()))
     img = scipy.misc.imresize(
@@ -61,6 +78,9 @@ def gaussian(shape=(7,7),sigma=1):
     return to_torch(h).float()
 
 def draw_labelmap(img, pt, sigma, type='Gaussian'):
+    """
+    Returns a heatmap, for img 'img' and point 'pt'. The heatmap is a Gaussian with center 'pt' and std dev 'sigma'.
+    """
     # Draw a 2D gaussian 
     # Adopted from https://github.com/anewell/pose-hg-train/blob/master/src/pypose/draw.py
     img = to_numpy(img)
@@ -100,9 +120,15 @@ def draw_labelmap(img, pt, sigma, type='Gaussian'):
 # =============================================================================
 
 def gauss(x, a, b, c, d=0):
+    """
+    General gaussian function
+    """
     return a * np.exp(-(x - b)**2 / (2 * c**2)) + d
 
 def color_heatmap(x):
+    """
+    Visualize a heatmap. Takes a 2D prob dist, and returns an image for the heatmap (i.e. colorizes it)
+    """
     x = to_numpy(x)
     color = np.zeros((x.shape[0],x.shape[1],3))
     color[:,:,0] = gauss(x, .5, .6, .2) + gauss(x, 1, .8, .3)
@@ -113,11 +139,17 @@ def color_heatmap(x):
     return color
 
 def imshow(img):
+    """
+    Display an image with matplotlib
+    """
     npimg = im_to_numpy(img*255).astype(np.uint8)
     plt.imshow(npimg)
     plt.axis('off')
 
 def show_joints(img, pts):
+    """
+    Display an image with joints overlayed
+    """
     imshow(img)
     
     for i in range(pts.size(0)):
@@ -126,6 +158,9 @@ def show_joints(img, pts):
     plt.axis('off')
 
 def show_sample(inputs, target):
+    """
+    Same as show_joints, but batch processing
+    """
     num_sample = inputs.size(0)
     num_joints = target.size(1)
     height = target.size(2)
@@ -142,6 +177,9 @@ def show_sample(inputs, target):
         plt.show()
 
 def sample_with_heatmap(inp, out, num_rows=2, parts_to_show=None):
+    """
+    Similar to show_sample, but displaying heatmaps also
+    """
     inp = to_numpy(inp * 255)
     out = to_numpy(out)
 
@@ -177,6 +215,10 @@ def sample_with_heatmap(inp, out, num_rows=2, parts_to_show=None):
     return full_img
 
 def batch_with_heatmap(inputs, outputs, mean=torch.Tensor([0.5, 0.5, 0.5]), num_rows=2, parts_to_show=None):
+    """
+    Batch version of sample_with_heatmap
+    Michael: I think that this description is correct.
+    """
     batch_img = []
     for n in range(min(inputs.size(0), 4)):
         inp = inputs[n] + mean.view(3, 1, 1).expand_as(inputs[n])

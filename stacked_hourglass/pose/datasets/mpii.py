@@ -6,15 +6,21 @@ import json
 import random
 import math
 
+from scipy.io import loadmat
+
 import torch
 import torch.utils.data as data
 
-from stacked_hourglass.pose.utils.osutils import *
+from utils.osutils import *
 from stacked_hourglass.pose.utils.imutils import *
 from stacked_hourglass.pose.utils.transforms import *
 
 
 class Mpii(data.Dataset):
+    """
+    Dataset that produces img, 2d pose, meta triples. Where meta contains lots of additional information
+    (such as additional persons poses + headbox information and so on)
+    """
     def __init__(self, jsonfile, img_folder, inp_res=256, out_res=64, train=True, sigma=1, scale_factor=0.25, \
                  rot_factor=30, label_type='Gaussian', mean=None, stddev=None, augment_data=True, args=None):
         self.img_folder = img_folder    # root image folders
@@ -26,10 +32,10 @@ class Mpii(data.Dataset):
         self.rot_factor = rot_factor
         self.label_type = label_type
         self.augment_data = augment_data
-        self.no_random_masking = args is None or args.no_random_masking
+        self.add_random_masking = args is not None and args.add_random_masking
 
         # Args for when there is random masking
-        if not self.no_random_masking:
+        if self.add_random_masking:
             self.mask_prob = args.mask_prob
             self.orientation_prob = args.orientation_prob
             self.mean_valued_prob = args.mean_valued_prob
@@ -40,12 +46,42 @@ class Mpii(data.Dataset):
         with open(jsonfile) as anno_file:   
             self.anno = json.load(anno_file)
 
+        # Store the training and validation indices into the complete dataset
         self.train, self.valid = [], []
         for idx, val in enumerate(self.anno):
             if val['isValidation'] == True:
                 self.valid.append(idx)
             else:
                 self.train.append(idx)
+
+        # Quite hacky, but when life gives you lemons...
+        # Marge joint visibility data and headbox data into self.anno
+        # We only have this for the validation set, and we have to trust the authors that headboxes_src is correct
+        # Shape of headboxes_src is (2,2,validation_dataset_size)
+        dict = loadmat('stacked_hourglass/evaluation/data/detections_our_format.mat')
+        if not self.is_train:
+            headboxes_src = dict['headboxes_src']
+            for i in range(len(self.valid)):
+                a = self.anno[self.valid[i]]
+                a['headbox'] = headboxes_src[:,:,i]
+
+        # Dictionary of joints (indices of joints we're interested in)
+        dataset_joints = dict['dataset_joints']
+        self.joint_idxs = {
+            'head': np.where(dataset_joints == 'head')[1][0],
+            'lsho': np.where(dataset_joints == 'lsho')[1][0],
+            'lelb': np.where(dataset_joints == 'lelb')[1][0],
+            'lwri': np.where(dataset_joints == 'lwri')[1][0],
+            'lhip': np.where(dataset_joints == 'lhip')[1][0],
+            'lkne': np.where(dataset_joints == 'lkne')[1][0],
+            'lank': np.where(dataset_joints == 'lank')[1][0],
+            'rsho': np.where(dataset_joints == 'rsho')[1][0],
+            'relb': np.where(dataset_joints == 'relb')[1][0],
+            'rwri': np.where(dataset_joints == 'rwri')[1][0],
+            'rkne': np.where(dataset_joints == 'rkne')[1][0],
+            'rank': np.where(dataset_joints == 'rank')[1][0],
+            'rhip': np.where(dataset_joints == 'rhip')[1][0],
+        }
 
         # Avoid work computing new mean + stddev if we can
         if mean is not None and stddev is not None:
@@ -55,6 +91,10 @@ class Mpii(data.Dataset):
 
 
     def _compute_mean(self):
+        """
+        Helper function to compuete the mean and std of the dataset for normalization
+        :return: mean, std dev
+        """
         # Load from cache if it exists
         dataset_specific_cache_file = ".cache/mpii_meanstd"
         if isfile(dataset_specific_cache_file):
@@ -88,15 +128,25 @@ class Mpii(data.Dataset):
 
 
     def set_mean_stddev(self, mean, stddev):
+        """
+        Setter
+        """
         self.mean = mean
         self.std = stddev
 
 
     def get_mean_stddev(self):
+        """
+        Getter
+        """
         return self.mean, self.std
 
 
     def __getitem__(self, index):
+        """
+        Get the 'index'th item from the dataset. The item being (img, 2d pose, meta) triplet.
+        """
+        # Unpacking
         sf = self.scale_factor
         rf = self.rot_factor
         if self.is_train:
@@ -104,8 +154,12 @@ class Mpii(data.Dataset):
         else:
             a = self.anno[self.valid[index]]
 
+        # Get the original image path
         img_path = os.path.join(self.img_folder, a['img_paths'])
+
+        # Load points, and their visibilities. a['joint_self'] is an array of [x,y, visible] of length 16
         pts = torch.Tensor(a['joint_self'])
+        jnts_visible = pts[:,2]
         # pts[:, 0:2] -= 1  # Convert pts to zero based
 
         # c = torch.Tensor(a['objpos']) - 1
@@ -118,21 +172,20 @@ class Mpii(data.Dataset):
             s = s * 1.25
 
         # For single-person pose estimation with a centered/scaled figure
-        # TODO: replace load_numpy_image with load_image when numpy hack is no longer neaded + PyTOrch broadcasting works properly
         nparts = pts.size(0)
         img = load_numpy_image(img_path)  # CxHxW
 
+        # If not, "no_random_masking" then randomly mask the image (mask may copy img data to provide "no masking")
+        if self.add_random_masking:
+            pts_coords = pts[:, :2]
+            should_mask, (min_x, max_x, min_y, max_y), mask = \
+                generate_random_mask(img, pts_coords, self.mask_prob, self.orientation_prob, self.mean_valued_prob,
+                                     self.mean, self.max_cover_ratio, self.noise_std)
+            if should_mask:
+                img[:, min_x:max_x, min_y:max_y] = mask
+
         r = 0
         if self.augment_data:
-            # If not, "no_random_masking" then randomly mask the image (mask may copy img data to provide "no masking")
-            if not self.no_random_masking:
-                pts_coords = pts[:,:2]
-                should_mask, (min_x, max_x, min_y, max_y), mask = generate_random_mask(img, pts_coords, self.mask_prob,
-                        self.orientation_prob, self.mean_valued_prob, self.mean, self.max_cover_ratio, self.noise_std)
-                if should_mask:
-                    img[:, min_x:max_x, min_y:max_y] = mask
-
-            # TODO: replace load_numpy_image with load_image when numpy hack is no longer neaded + PyTOrch broadcasting works properly
             img = torch.Tensor(img)
 
             # Generate a random scale and rotation
@@ -150,7 +203,7 @@ class Mpii(data.Dataset):
             img[1, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
             img[2, :, :].mul_(random.uniform(0.8, 1.2)).clamp_(0, 1)
 
-        # TODO: replace load_numpy_image with load_image when numpy hack is no longer neaded + PyTOrch broadcasting works properly
+        # Convert numpy
         img = torch.Tensor(img)
 
         # Prepare image and groundtruth map
@@ -161,19 +214,26 @@ class Mpii(data.Dataset):
         tpts = pts.clone()
         target = torch.zeros(nparts, self.out_res, self.out_res)
         for i in range(nparts):
-            # if tpts[i, 2] > 0: # This is evil!!
             if tpts[i, 1] > 0:
                 tpts[i, 0:2] = to_torch(transform(tpts[i, 0:2]+1, c, s, [self.out_res, self.out_res], rot=r))
                 target[i] = draw_labelmap(target[i], tpts[i]-1, self.sigma, type=self.label_type)
 
         # Meta info
-        meta = {'index' : index, 'center' : c, 'scale' : s, 
-        'pts' : pts, 'tpts' : tpts}
+        meta = {'index': index, 'center': c, 'scale': s,
+                'pts': pts, 'tpts': tpts, 'visible': jnts_visible,
+                'filename': img_path}
+
+        # Add headbox information to meta if we are in the validation dataset
+        if not self.is_train:
+            meta['headbox'] = a['headbox']
 
         return inp, target, meta
 
 
     def __len__(self):
+        """
+        Size of the dataset
+        """
         if self.is_train:
             return len(self.train)
         else:

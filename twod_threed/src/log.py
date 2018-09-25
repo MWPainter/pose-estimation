@@ -8,6 +8,9 @@ import torch
 
 
 class Logger(object):
+    """
+    Logger object to log values to a file
+    """
     def __init__(self, fpath, title=None, resume=False):
         self.file = None
         self.resume = resume
@@ -31,6 +34,9 @@ class Logger(object):
                 self.file = open(fpath, 'w')
 
     def set_names(self, names):
+        """
+        Set the names of the things that we are logging
+        """
         if self.resume:
             pass
         self.numbers = {}
@@ -43,6 +49,9 @@ class Logger(object):
         self.file.flush()
 
     def append(self, member, mem_type):
+        """
+        Log the values in the list "member", with types "mem_types". Member[i] is the logged value for self.names[i]
+        """
         assert len(self.names) == len(member), '# of data does not match title'
         for index, mem in enumerate(member):
             if mem_type[index] == 'int':
@@ -59,16 +68,13 @@ class Logger(object):
             self.file.close()
 
 
-def save_options(opt, path):
-    file_path = os.path.join(path, 'opt.json')
-    with open(file_path, 'w') as f:
-        f.write(json.dumps(vars(opt), sort_keys=True, indent=4))
-
 
 def save_ckpt(state, ckpt_path, is_best=True):
+    """
+    Save a checkpoint (and save the best checkpoint w.r.t. validation loss)
+    """
     if is_best:
         file_path = os.path.join(ckpt_path, 'ckpt_best.pth.tar')
         torch.save(state, file_path)
-    else:
-        file_path = os.path.join(ckpt_path, 'ckpt_last.pth.tar')
-        torch.save(state, file_path)
+    file_path = os.path.join(ckpt_path, 'ckpt_last.pth.tar')
+    torch.save(state, file_path)
