@@ -185,8 +185,7 @@ def _plot3Dpose(channels, ax, lcolor="#3498db", rcolor="#e74c3c", add_labels=Fal
 
     # Make connection matrix
     for i in np.arange(len(I)):
-        x, y, z = [np.array( [vals[I[i], j], vals[J[i], j]] ) for j in range(3)] # TODO: understand why this was x,y,z, but this is effectively a rotation/reflection (not sure why this is necessary...)
-        # z *= -1 # TODO: (understand why) reflection, as figures were upside down for some reason
+        x, y, z = [np.array( [vals[I[i], j], vals[J[i], j]] ) for j in range(3)]
         ax.plot(x, y, z, lw=2, c=lcolor if LR[i] else rcolor)
 
     # xroot, yroot, zroot = vals[0,0], vals[0,1], vals[0,2]
