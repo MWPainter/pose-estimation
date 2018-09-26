@@ -69,6 +69,16 @@ class Logger(object):
 
 
 
+
+def save_options(opt, path):
+    file_path = os.path.join(path, 'opt.json')
+
+    with open(file_path, 'w') as f:
+        f.write(json.dumps(vars(opt), sort_keys=True, indent=4))
+
+
+
+
 def save_ckpt(state, ckpt_path, is_best=True):
     """
     Save a checkpoint (and save the best checkpoint w.r.t. validation loss)

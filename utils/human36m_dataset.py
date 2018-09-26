@@ -34,6 +34,9 @@ class Human36mDataset(Dataset):
 
     Instance normalization refers to if the data will be normalized per instance, rather than using dataset statistics.
 
+    Importantly, note that there are 17 moving joints in Human3.6m. For the 2D poses, we ignore the Neck/Nose joint.
+    Therefore we have 16 joints at the 2D poses level, and 17 for the 3D poses.
+
     self.imgs, self.pose and self.pose_meta are arrays, of length equal to the number of examples in the dataset
     self.cams will be indexed by (subject_id, camera_id) and is a dictionary
     """
@@ -69,13 +72,23 @@ class Human36mDataset(Dataset):
         self.pose = self.train_pose if is_train else self.val_pose
         self.pose_meta = self.train_pose_meta if is_train else self.val_pose_meta
 
+        # Dimensions to actually use from the Human3.6m data in the models
+        self.pose_2d_indx_to_use, self.pose_2d_indx_to_ignore = data_utils.dimensions_to_use(is_2d=True)
+        self.pose_3d_indx_to_use, self.pose_3d_indx_to_ignore = data_utils.dimensions_to_use(is_2d=False)
+
         # Compute normalization stats
         self.imgs_mean, self.imgs_std = self._compute_norm_stats_imgs()
         print("About to compute normalization stats")
-        stats_2d, stats_3d = self._compute_norm_stats_poses()
+        self.pose_3d_mean, self.pose_3d_std, self.pose_2d_mean, self.pose_2d_std = self._compute_norm_stats_poses()
         print("Computed normalization stats")
-        self.pose_2d_mean, self.pose_2d_std, self.pose_2d_indx_to_ignore, self.pose_2d_indx_to_use = stats_2d
-        self.pose_3d_mean, self.pose_3d_std, self.pose_3d_indx_to_ignore, self.pose_3d_indx_to_use = stats_3d
+
+        # Only remember the means and std's of the dimensions we're actually going to use
+        # And add a small constant to the std, to avoid div by zero errors
+        self.pose_3d_mean = self.pose_3d_mean[self.pose_3d_indx_to_use]
+        self.pose_3d_std  = self.pose_3d_std[self.pose_3d_indx_to_use] + 1.0e-8
+        self.pose_2d_mean = self.pose_2d_mean[self.pose_2d_indx_to_use]
+        self.pose_2d_std  = self.pose_2d_std[self.pose_2d_indx_to_use] + 1.0e-8
+
 
 
 
@@ -194,6 +207,11 @@ class Human36mDataset(Dataset):
         Computes the mean and std dev of the poses in the *training* dataset. EVEN if this is a validation dataset.
         This just puts together a bunch of stuff from data_utils really.
 
+        A very important part of this function, and why we *always* run it even if we are using instance normalization
+        is to get the dimensions to use for the 2D and 3D poses. Note that there are 17 moving joints in Human3.6m.
+        For the 2D poses, we ignore the Neck/Nose joint. Therefore we have 16 joints at the 2D poses level, and 17
+        for the 3D poses.
+
         :return: (stats_2d, stats_3d), where each of stats_2d/stats_3d is a tuple with the following four things:
             mean = the mean of the training dataset
             std = the std dev of the training dataset
@@ -211,21 +229,21 @@ class Human36mDataset(Dataset):
         poses_camera_coords = self.world_to_camera_3d(self.train_pose, self._flattened_train_cameras())
         poses_transformed, _ = data_utils.postprocess_3d(poses_camera_coords)
         poses_transformed_np = copy.deepcopy(np.vstack(poses_transformed))
-        stats_3d = data_utils.normalization_stats(poses_transformed_np, dim=3, predict_14=False)
+        mean_3d, std_3d = data_utils.normalization_stats(poses_transformed_np, dim=3)
 
         # Project all of the the points, and compute the stats for 2d coords
         poses_projected = self.project_poses(self.train_pose, self._flattened_train_cameras())
         poses_projected_np = copy.deepcopy(np.vstack(poses_projected))
-        stats_2d = data_utils.normalization_stats(poses_projected_np, dim=2, predict_14=False)
+        mean_2d, std_2d = data_utils.normalization_stats(poses_projected_np, dim=2)
 
         # Cache the stats (as they're slow to compute)
         print("finished computing h36m pose stats, caching to file: " + cache_file)
         if not isdir(cache_dir):
             mkdir_p(cache_dir)
-        stats = (stats_2d, stats_3d)
+        stats = (mean_3d, std_3d, mean_2d, std_2d)
         pickle.dump(stats, open(cache_file, "wb"))
 
-        return stats
+        return mean_3d, std_3d, mean_2d, std_2d
 
 
 
@@ -288,12 +306,12 @@ class Human36mDataset(Dataset):
         """
         # Compute a random rotation matrix, from a random normal and random number in the rand [0,2pi)
         angle = 2.0 * random.random() * math.pi
-        normal = np.ndarray([[0.0, 0.0, 1.0]]) if self.z_rotations_only else self._rand_normals_3d(1)
+        normal = np.array([[0.0, 0.0, 1.0]]) if self.z_rotations_only else self._rand_normals_3d(1)
         Q = data_utils.rotation_matrices(normal, angle)[0]
 
         # Decide if we are flipping randomly (in the xaxis)
         pr = random.random()
-        if pr < 2.0: #self.flip_prob:
+        if pr < self.flip_prob:
             Q = np.matmul(Q, np.diag([-1,1,1]))
 
         return Q
@@ -345,9 +363,12 @@ class Human36mDataset(Dataset):
         """
         Normalize a single pose (see data_utils function)
         """
-        return data_utils.normalize_single_pose(pose_camera_coords, num_joints, self.dataset_normalization, is_2d,
-                                                self.pose_2d_mean, self.pose_2d_std, self.pose_2d_indx_to_use,
-                                                self.pose_3d_mean, self.pose_3d_std, self.pose_3d_indx_to_use)
+        if is_2d:
+            return data_utils.normalize_single_pose(pose_camera_coords, num_joints, self.dataset_normalization,
+                                                    self.pose_2d_mean, self.pose_2d_std, is_2d=is_2d)
+        else:
+            return data_utils.normalize_single_pose(pose_camera_coords, num_joints, self.dataset_normalization,
+                                                    self.pose_3d_mean, self.pose_3d_std, is_2d=is_2d)
 
 
     def __getitem__(self, index):
@@ -363,8 +384,8 @@ class Human36mDataset(Dataset):
         1. Gets data from the appropriate storage
         2. (if self.orthogonal_data_augmentation) Performs an orthogonal transformation around the hip joint
         3. Projects the pose to compute the 2D pose
-        4. Normalizes the 2D and 3D poses (either instance normalization, or, according to dataset statistics)
-        5. Sub sample the points, so that we only output the joints that actually move
+        4. Subsample pose data, to only consider the dimensions that we really want to use
+        5. Normalizes the 2D and 3D poses (either instance normalization, or, according to dataset statistics)
         6. Perform joint dropping/masking
         
         :param index: What index we want to get from the dataset, in the range [0, len(dataset)]
@@ -394,15 +415,15 @@ class Human36mDataset(Dataset):
         # Step 3, project the pose (this transforms the pose into camera coords and then projects)
         augmented_pose_2d = self.project_pose_3d(augmented_pose, cam)
 
-        # Step 4, normalize the 2D and 3D poses. (Note that we need to manually transform into camera coords, and
-        # 'project_pose_3d' includes this transformation before projection)
-        normalized_pose_2d, hip_pos_2d, scale_2d = self.normalize_single_pose(augmented_pose_2d, self.num_joints, is_2d=True)
-        augmented_pose_cam = self.world_to_camera_single_pose_3d(augmented_pose, cam)
-        normalized_pose, hip_pos, scale_3d = self.normalize_single_pose(augmented_pose_cam, self.num_joints, is_2d=False)
+        # Step 4, sub sample the joints, so that we only give the network the ones that move
+        augmented_pose_2d = augmented_pose_2d[self.pose_2d_indx_to_use]
+        augmented_pose = augmented_pose[self.pose_3d_indx_to_use]
 
-        # Step 5, sub sample the joints, so that we only give the network the ones that move
-        normalized_pose_2d = normalized_pose_2d[self.pose_2d_indx_to_use]
-        normalized_pose = normalized_pose[self.pose_3d_indx_to_use]
+        # Step 5, normalize the 2D and 3D poses. (Note that we need to manually transform into camera coords, and
+        # 'project_pose_3d' includes this transformation before projection)
+        normalized_pose_2d, hip_pos_2d, scale_2d = self.normalize_single_pose(augmented_pose_2d, self.num_joints_pred_2d, is_2d=True)
+        augmented_pose_cam = self.world_to_camera_single_pose_3d(augmented_pose, cam)
+        normalized_pose, hip_pos, scale_3d = self.normalize_single_pose(augmented_pose_cam, self.num_joints_pred_3d, is_2d=False)
 
         # Step 6, randomly drop some joints (only on the input/2D pose)
         joint_mask = np.array(np.random.uniform(size=self.num_joints) > self.drop_joint_prob, dtype=int)
@@ -412,7 +433,6 @@ class Human36mDataset(Dataset):
             normalized_pose_2d = normalized_pose_2d.flatten()
 
         # Store any meta data
-        print(self.pose_3d_indx_to_use[::3] // 3)
         meta = {
             'index': index,
             'frame_number': frame_number,
@@ -420,7 +440,7 @@ class Human36mDataset(Dataset):
             'cam': cam,
             'Q': Q,
             'joint_mask': joint_mask,
-            '3d_pose_camera_coords': augmented_pose_cam[self.pose_3d_indx_to_use],
+            '3d_pose_camera_coords': augmented_pose_cam,
             '2d_indx_used': self.pose_2d_indx_to_use,
             '3d_indx_used': self.pose_3d_indx_to_use,
             '2d_indx_ignored': self.pose_2d_indx_to_ignore,

@@ -7,7 +7,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from twod_threed.src import cameras
+from utils import camera_utils as cameras
 import h5py
 import glob
 import copy
@@ -203,19 +203,16 @@ def load_stacked_hourglass(data_dir, subjects, actions):
     return data
 
 
-def normalization_stats(complete_data, dim, predict_14=False):
+def normalization_stats(complete_data, dim):
     """
     Computes normalization statistics: mean and stdev, dimensions used and ignored
 
     Args
       complete_data: nxd np array with poses
       dim. integer={2,3} dimensionality of the data
-      predict_14. boolean. Whether to use only 14 joints
     Returns
       data_mean: np vector with the mean of the data
       data_std: np vector with the standard deviation of the data
-      dimensions_to_ignore: list of dimensions not used in the model
-      dimensions_to_use: list of dimensions used in the model
     """
     if not dim in [2, 3]:
         raise (ValueError, 'dim must be 2 or 3')
@@ -223,23 +220,30 @@ def normalization_stats(complete_data, dim, predict_14=False):
     data_mean = np.mean(complete_data, axis=0)
     data_std = np.std(complete_data, axis=0)
 
-    # Encodes which 17 (or 14) 2d-3d pairs we are predicting
-    dimensions_to_ignore = []
-    if dim == 2:
+    return data_mean, data_std
+
+
+def dimensions_to_use(is_2d):
+    """
+    Computes the dimensions to use out of all of the H36m data, as not all of them move independently.
+
+    Importantly, note that there are 17 moving joints in Human3.6m. For the 2D poses, we ignore the Neck/Nose joint.
+    Therefore we have 16 joints at the 2D poses level, and 17 for the 3D poses.
+
+    :param is_2d: If we want the dimensions to use for 2d data
+    :return: dimensions to use (in the model), dimensions to ignroe (in the model)
+    """
+    if is_2d:
         dimensions_to_use = np.where(np.array([x != '' and x != 'Neck/Nose' for x in H36M_NAMES]))[0]
         dimensions_to_use = np.sort(np.hstack((dimensions_to_use * 2, dimensions_to_use * 2 + 1)))
         dimensions_to_ignore = np.delete(np.arange(len(H36M_NAMES) * 2), dimensions_to_use)
     else:  # dim == 3
         dimensions_to_use = np.where(np.array([x != '' for x in H36M_NAMES]))[0]
-        if predict_14: dimensions_to_use = np.delete(dimensions_to_use, [0, 7, 9])
-        if predict_14: dimensions_to_use = np.delete(dimensions_to_use, [0, 7, 9])
-
         dimensions_to_use = np.sort(np.hstack((dimensions_to_use * 3,
                                                dimensions_to_use * 3 + 1,
                                                dimensions_to_use * 3 + 2)))
         dimensions_to_ignore = np.delete(np.arange(len(H36M_NAMES) * 3), dimensions_to_use)
-
-    return data_mean, data_std, dimensions_to_ignore, dimensions_to_use
+    return dimensions_to_use, dimensions_to_ignore
 
 
 def transform_world_to_camera(poses_3d, cams):
@@ -259,12 +263,13 @@ def transform_world_to_camera(poses_3d, cams):
         for j in range(len(cams[i])):
             R, T, f, c, k, p, name = cams[i][j]
             pose_cam_coords = cameras.world_to_camera_frame(np.reshape(pose_world_coords, [-1, 3]), R, T)
-            pose_cam_coords = np.reshape(pose_cam_coords, [len(H36M_NAMES) * 3])
+            pose_cam_coords = np.reshape(pose_cam_coords, [-1])
+            pose_cam_coords = np.reshape(pose_cam_coords, [-1])
             poses_cam_coords.append(pose_cam_coords)
     return poses_cam_coords
 
 
-def normalize_data(data, data_mean, data_std, dim_to_use):
+def normalize_data(data, data_mean, data_std):
     """
     Normalizes a list of poses
 
@@ -278,7 +283,7 @@ def normalize_data(data, data_mean, data_std, dim_to_use):
     """
     data_out = []
     for indx in range(len(data)):
-        data_out.append(normalize_pose(data[indx], data_mean, data_std, dim_to_use))
+        data_out.append(normalize_pose(data[indx], data_mean, data_std))
     return data_out
 
 
@@ -319,7 +324,7 @@ def project_to_cameras(poses_3d, cams):
     Project 3d poses using camera parameters
 
     Args
-      poses_3d: array of poses, shape of (num_poses, 96)
+      poses_3d: array of poses, shape of (num_poses, 3*num_joints)
       cams: list of lists with cameras (cams[i] is the list of camers for poses_3d[i])
     Returns
       t2d: dictionary with 2d poses (If cams has "shape" (m), then this returns a list of length (num_poses*m) 2d poses)
@@ -333,7 +338,7 @@ def project_to_cameras(poses_3d, cams):
         for j in range(len(cams[i])):
             R, T, f, c, k, p, name = cams[i][j]
             pose_2d, _, _, _, _ = cameras.project_point_radial(np.reshape(pose_3d, [-1, 3]), R, T, f, c, k, p)
-            pose_2d = np.reshape(pose_2d, [len(H36M_NAMES) * 2])
+            pose_2d = np.reshape(pose_2d, [-1])
             poses_2d.append(pose_2d)
 
     return poses_2d
@@ -359,12 +364,12 @@ def read_2d_predictions(actions, data_dir):
     test_set = load_stacked_hourglass(data_dir, TEST_SUBJECTS, actions)
 
     complete_train = copy.deepcopy(np.vstack(train_set.values()))
-    data_mean, data_std, dim_to_ignore, dim_to_use = normalization_stats(complete_train, dim=2)
+    data_mean, data_std = normalization_stats(complete_train, dim=2)
 
-    train_set = normalize_data(train_set, data_mean, data_std, dim_to_use)
-    test_set = normalize_data(test_set, data_mean, data_std, dim_to_use)
+    train_set = normalize_data(train_set, data_mean, data_std)
+    test_set = normalize_data(test_set, data_mean, data_std)
 
-    return train_set, test_set, data_mean, data_std, dim_to_ignore, dim_to_use
+    return train_set, test_set, data_mean, data_std
 
 
 def create_2d_data(actions, data_dir, rcams):
@@ -394,13 +399,13 @@ def create_2d_data(actions, data_dir, rcams):
 
     # Compute normalization statistics.
     complete_train = copy.deepcopy(np.vstack(train_set.values()))
-    data_mean, data_std, dim_to_ignore, dim_to_use = normalization_stats(complete_train, dim=2)
+    data_mean, data_std = normalization_stats(complete_train, dim=2)
 
     # Divide every dimension independently
-    train_set = normalize_data(train_set, data_mean, data_std, dim_to_use)
-    test_set = normalize_data(test_set, data_mean, data_std, dim_to_use)
+    train_set = normalize_data(train_set, data_mean, data_std)
+    test_set = normalize_data(test_set, data_mean, data_std)
 
-    return train_set, test_set, data_mean, data_std, dim_to_ignore, dim_to_use
+    return train_set, test_set, data_mean, data_std
 
 
 def read_3d_data(actions, data_dir, camera_frame, rcams, predict_14=False):
@@ -437,13 +442,13 @@ def read_3d_data(actions, data_dir, camera_frame, rcams, predict_14=False):
 
     # Compute normalization statistics
     complete_train = copy.deepcopy(np.vstack(train_set.values()))
-    data_mean, data_std, dim_to_ignore, dim_to_use = normalization_stats(complete_train, dim=3, predict_14=predict_14)
+    data_mean, data_std = normalization_stats(complete_train, dim=3, predict_14=predict_14)
 
     # Divide every dimension independently
-    train_set = normalize_data(train_set, data_mean, data_std, dim_to_use)
-    test_set = normalize_data(test_set, data_mean, data_std, dim_to_use)
+    train_set = normalize_data(train_set, data_mean, data_std)
+    test_set = normalize_data(test_set, data_mean, data_std)
 
-    return train_set, test_set, data_mean, data_std, dim_to_ignore, dim_to_use, train_root_positions, test_root_positions
+    return train_set, test_set, data_mean, data_std, train_root_positions, test_root_positions
 
 
 def postprocess_3d(poses_set):
@@ -459,12 +464,12 @@ def postprocess_3d(poses_set):
     root_positions = []
     for k in range(len(poses_set)):
         # Keep track of the global position
-        root_positions.append(copy.deepcopy(poses_set[k][:, :3]))
+        root_positions.append(copy.deepcopy(poses_set[k][:3]))
 
         # Remove the root from the 3d position
-        poses = poses_set[k]
-        poses = poses - np.tile(poses[:, :3], [1, len(H36M_NAMES)])
-        poses_set[k] = poses
+        poses = np.reshape(poses_set[k], [-1,3])
+        poses = poses - poses[0]
+        poses_set[k] = np.reshape(poses, [-1])
 
     return poses_set, root_positions
 
@@ -604,14 +609,12 @@ def unNormalizeData(pose, meta, dataset_normalization, is_2d=False):
     """
     if dataset_normalization:
         if not is_2d:
-            indx_to_use = meta['3d_indx_used']
-            mean = meta['3d_mean'][:,indx_to_use]
-            std = meta['3d_std'][:,indx_to_use]
+            mean = meta['3d_mean']
+            std = meta['3d_std']
             return pose * std + mean
         else:
-            indx_to_use = meta['2d_indx_used']
-            mean = meta['2d_mean'][:,indx_to_use]
-            std = meta['2d_std'][:,indx_to_use]
+            mean = meta['2d_mean']
+            std = meta['2d_std']
             return pose * std + mean
     else:
         if not is_2d:
@@ -629,26 +632,21 @@ def unNormalizeData(pose, meta, dataset_normalization, is_2d=False):
 
 
 
-def normalize_single_pose(pose_camera_coords, num_joints, dataset_normalization, is_2d,
-                          pose_2d_mean=None, pose_2d_std=None, pose_2d_indx=None,
-                          pose_3d_mean=None, pose_3d_std=None, pose_3d_indx=None):
+def normalize_single_pose(pose_camera_coords, num_joints, dataset_normalization, pose_mean=None, pose_std=None, is_2d=False):
     """
     Normalize a single pose to center the points around the hip joint, and then also scale the points (by a
     scalar) to make the distance std dev equal to 1. If not using instance normalization we just return the
     data normalized as it would have been before.
 
-    Dataset normalization scheme falls back onto the 'normalize data' function.
+    Dataset normalization scheme falls back onto the 'normalize data' function. Note that in the old code, 3D poses
+    were centered around a zeroed hip joint, but, 2D poses were not.
 
     :param pose_camera_coords: A Numpy tensor of shape (k*d,) where there are
     :param num_joints: The number of joints in the pose (i.e. the value d).
     :param dataset_normalization: If we are normalizing poses according to dataset statistics
     :param is_2d: Boolean saying if the data is 2d or 3d points
-    :param pose_2d_mean: Mean for 2d data in dataset
-    :param pose_2d_std: Std for 2d data in dataset
-    :param pose_2d_indx: Indices to use out of 2d mean and std
-    :param pose_3d_mean: Mean for 3d data in dataset
-    :param pose_3d_std: Std for 3d data in dataset
-    :param pose_3d_indx: Indices to use out of 3d mean and std
+    :param pose_mean: Mean for poses (2d or 3d) in dataset
+    :param pose_std: Std for poses (2d of 3d) in dataset
     :return: if using instance normalization then (pose_coords_hip_zeroed, hip_root_positions, joint_dist_std)
         pose_coords_hip_zeroed = pose coordinates, which have been translated to make the hip at origin and scaled
                 so that the distances of the joints to the origin have std = 1. Shape (k*d,)
@@ -661,7 +659,7 @@ def normalize_single_pose(pose_camera_coords, num_joints, dataset_normalization,
         joint_dist_std = std_distance(pose_zeroed_hip, num_joints)
         return pose_zeroed_hip / joint_dist_std, hip_root_position, joint_dist_std
     else:
-        if is_2d:
-            return normalize_data([pose_camera_coords], pose_2d_mean, pose_2d_std, pose_2d_indx)[0], None, None
-        else:
-            return normalize_data([pose_camera_coords], pose_3d_mean, pose_3d_std, pose_3d_indx)[0], None, None
+        poses = [pose_camera_coords]
+        if not is_2d:
+            poses, _ = postprocess_3d(poses)
+        return normalize_data(poses, pose_mean, pose_std)[0], None, None

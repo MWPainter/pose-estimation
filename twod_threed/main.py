@@ -701,7 +701,7 @@ def _test(test_loader, model, criterion, dataset_normalization, procrustes=False
 
         sqerr = (outputs_use - targets_use) ** 2
         sqerr = np.reshape(sqerr, (sqerr.shape[0], 17, 3))
-        distance = np.sum(sqerr, axis=2)
+        distance = np.sqrt(np.sum(sqerr, axis=2))
         all_dist.append(distance)
 
         # update summary
