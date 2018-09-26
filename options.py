@@ -45,7 +45,7 @@ training_defaults = \
                 "tb_dir": "tb_logs/",
 
                 # Training options
-                "epochs": 200,
+                "epochs": 500,
                 "lr": 1.0e-3,
                 "train_batch_size": 64,
                 "test_batch_size": 64,
@@ -140,7 +140,7 @@ class Options:
         # ===============================================================
         self._parser.add_argument('--lr', type=float, default=t_defaults["lr"])
         self._parser.add_argument('--lr_decay', type=int, default=100000, help='# steps of lr decay')
-        self._parser.add_argument('--lr_gamma', type=float, default=0.96)
+        self._parser.add_argument('--lr_gamma', type=float, default=0.99)
         self._parser.add_argument('--epochs', type=int, default=t_defaults["epochs"])
         self._parser.add_argument('--dropout', type=float, default=0.5,
                                  help='dropout probability, 1.0 to make no dropout')
