@@ -140,7 +140,7 @@ class Options:
         # ===============================================================
         self._parser.add_argument('--lr', type=float, default=t_defaults["lr"])
         self._parser.add_argument('--lr_decay', type=int, default=100000, help='# steps of lr decay')
-        self._parser.add_argument('--lr_gamma', type=float, default=0.99)
+        self._parser.add_argument('--lr_gamma', type=float, default=1.0)
         self._parser.add_argument('--epochs', type=int, default=t_defaults["epochs"])
         self._parser.add_argument('--dropout', type=float, default=0.5,
                                  help='dropout probability, 1.0 to make no dropout')
