@@ -527,6 +527,17 @@ def std_distance(pose, num_joints):
 
 
 
+def std_distance_torch_3d(poses):
+    """
+    Same as "std_distance", but implemented in torch, for 3D poses only, and for a batch
+    """
+    batch_size = pose.size(0)
+    poses = poses.view(batch_size, -1, 3)
+    norms = torch.sqrt(torch.sum(poses ** 2, 2))
+    return torch.std(norms, 1)
+
+
+
 def _outer_product(u, v):
     """
     (Batch) compute the outer product of u and v

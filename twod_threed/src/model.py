@@ -6,6 +6,8 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 
+from utils import data_utils
+
 
 def weight_init(m):
     if isinstance(m, nn.Linear):
@@ -123,10 +125,12 @@ class LinearModel(nn.Module):
         y = self.w2(y)
 
         # If instance normalized, re-introduce the zeroed hip joint
+        # Also help the network out by renormalizing std dev of joint distances to 1, as we know the targets have this
         if self.instance_normalized_input:
             new_y = torch.zeros(batch_size, self.advertised_output_size).cuda()
             new_y[:,3:] = y
-            y = new_y
+            std = data_utils.std_distance_torch_3d(new_y)
+            y = new_y / std.view(-1,1)
 
         # Unflatten
         if flatten:
