@@ -29,6 +29,7 @@ from twod_threed.src.model import LinearModel, weight_init, Discriminator, Proje
 from twod_threed.src.datasets.human36m import Human36M
 
 from utils import data_utils
+from utils.plotting_utils import *
 from utils.osutils import mkdir_p, isdir
 
 from tensorboardX import SummaryWriter
@@ -408,6 +409,14 @@ def _train(train_loader, model, criterion, optimizer, writer,
         # tensorboard logs
         if glob_step % tb_log_freq == 0:
             writer.add_scalar('data/iter/loss', loss, glob_step)
+            weight_mag = parameter_magnitude(model)
+            grad_mag = gradient_magnitude(model)
+            update_mag = update_magnitude(model, lr_now, grad_mag)
+            update_rat = update_ratio(model, lr_now, weight_mag, grad_mag)
+            writer.add_scalar('model/weight_magnitude', weight_mag, glob_step)
+            writer.add_scalar('model/gradient_magnitude', grad_mag, glob_step)
+            writer.add_scalar('model/update_magnitude', update_mag, glob_step)
+            writer.add_scalar('model/update_ratio', update_rat, glob_step)
 
         # update summary
         if (i + 1) % tb_log_freq == 0:
