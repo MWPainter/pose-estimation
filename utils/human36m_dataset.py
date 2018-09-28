@@ -5,6 +5,7 @@ import math
 import os
 import pickle
 import random
+import scipy
 from collections import defaultdict
 
 import torch
@@ -41,15 +42,19 @@ class Human36mDataset(Dataset):
     self.cams will be indexed by (subject_id, camera_id) and is a dictionary
     """
 
-    def __init__(self, camera_file=CAMERA_FILE, dataset_path=DATASET_PATH, cams_per_frame=4, is_train=True,
-                 orthogonal_data_augmentation=False, z_rotations_only=False, dataset_normalization=False, num_joints=32,
-                 num_joints_pred_2d=16, num_joints_pred_3d=17, flip_prob=0.5, drop_joint_prob=0.0):
+    def __init__(self, camera_file=CAMERA_FILE, dataset_path=DATASET_PATH, dataset_img_path=None, cams_per_frame=4, is_train=True,
+                 orthogonal_data_augmentation_prob=0.0, z_rotations_only=False, dataset_normalization=False, num_joints=32,
+                 num_joints_pred_2d=16, num_joints_pred_3d=17, flip_prob=0.5, drop_joint_prob=0.0, load_image_data=False):
+        # TODO: DONT COMMIT THIS
+        dataset_img_path = "/data/h36m_vid_frame/newvidframes"
+
         # remember the parameters input
         self.camera_file = camera_file
         self.dataset_path = dataset_path
+        self.dataset_img_path = dataset_path if dataset_img_path is None else dataset_img_path
         self.cams_per_frame = cams_per_frame
         self.is_train = is_train
-        self.orthogonal_data_augmentation = orthogonal_data_augmentation
+        self.orthogonal_data_augmentation_prob = orthogonal_data_augmentation_prob
         self.z_rotations_only = z_rotations_only
         self.dataset_normalization = dataset_normalization
         self.num_joints = num_joints
@@ -57,29 +62,47 @@ class Human36mDataset(Dataset):
         self.num_joints_pred_3d = num_joints_pred_3d
         self.flip_prob = flip_prob
         self.drop_joint_prob = drop_joint_prob
+        self.load_image_data = load_image_data
+
+        self.actions = ALL_ACTIONS
+        
+        # Sanity check
+        if self.load_image_data and self.orthogonal_data_augmentation_prob > 0.0:
+            raise Exception("Can't perform a orthogonal data augmentaiton when we include the image data, set "
+                            "the orthogonal data augmentation probability to zero.")
+
+        # Resolution for stacked hourglass
+        self.hg_in_res = 256
+        self.hg_out_res = 64
 
         # The Human3.6m subjects to use for training/validation
         self.subjects = data_utils.TRAIN_SUBJECTS if is_train else data_utils.TEST_SUBJECTS
 
-        # Load in the images, 3D poses and cameras
-        self.train_imgs, self.val_imgs = self._load_imgs(dataset_path)
+        # TODO: DONT COMMIT THIS
+        self.subjects = [1,5] if is_train else [11]
+        self.actions = ["Directions"]
+
+        # Load in the 3D poses and cameras
         self.train_pose, self.train_pose_meta, self.val_pose, self.val_pose_meta = self._load_pose(dataset_path)
         self.train_cams = self._load_cams(camera_file, data_utils.TRAIN_SUBJECTS)
         self.val_cams = self._load_cams(camera_file, data_utils.TEST_SUBJECTS)
 
-        self.imgs = self.train_imgs if is_train else self.val_imgs
         self.cams = self.train_cams if is_train else self.val_cams
         self.pose = self.train_pose if is_train else self.val_pose
         self.pose_meta = self.train_pose_meta if is_train else self.val_pose_meta
+
+        # Get the video data from the pose data
+        self.video_sequences = self._compute_video_frame_sets()
 
         # Dimensions to actually use from the Human3.6m data in the models
         self.pose_2d_indx_to_use, self.pose_2d_indx_to_ignore = data_utils.dimensions_to_use(is_2d=True)
         self.pose_3d_indx_to_use, self.pose_3d_indx_to_ignore = data_utils.dimensions_to_use(is_2d=False)
 
         # Compute normalization stats
-        self.imgs_mean, self.imgs_std = self._compute_norm_stats_imgs()
         print("About to compute normalization stats")
         self.pose_3d_mean, self.pose_3d_std, self.pose_2d_mean, self.pose_2d_std = self._compute_norm_stats_poses()
+        if load_image_data:
+            self.img_mean, self.img_std = self._compute_img_color_norm_stats()
         print("Computed normalization stats")
 
         # Only remember the means and std's of the dimensions we're actually going to use
@@ -89,6 +112,20 @@ class Human36mDataset(Dataset):
         self.pose_2d_mean = self.pose_2d_mean[self.pose_2d_indx_to_use]
         self.pose_2d_std  = self.pose_2d_std[self.pose_2d_indx_to_use] + 1.0e-8
 
+
+
+
+    def get_color_mean(self):
+        return self.img_mean
+
+    def get_color_std(self):
+        return self.img_std
+
+    def set_color_mean(self, mean):
+        self.img_mean = mean
+
+    def set_color_std(self, std):
+        self.img_std = std
 
 
 
@@ -108,18 +145,6 @@ class Human36mDataset(Dataset):
 
 
 
-    def _load_imgs(self, img_path):
-        # TODO: actually implement this
-        return [], []
-
-
-
-    def _load_image_from_filename(self, img_file):
-        # TODO: actually implement this. (Necessary as all of the images are likely too large to store in memory).
-        return None
-
-
-
     def _load_cams(self, camera_file, subjects):
         """
         Uses the camera_utils to load all of the camera objects.
@@ -129,6 +154,72 @@ class Human36mDataset(Dataset):
         :return: A dictionary, indexed by (subject number, cam number) keys
         """
         return camera_utils.load_cameras(camera_file, subjects)
+
+
+
+    def _compute_img_color_norm_stats(self):
+        """
+        Computes the image color normalization statistics. Numpy image will be of dimesnions H,W,C
+        We compute a mean of m+n examples using the following formulae, parentheses indicating the order of computation,
+        so that the computation is numerically stable over large sample sizes. (Number of pixels in the entire dataset
+        is vast). x_{m+n} is the vector containing all of the elements from x_m and x_n
+
+        mean(x_{m+n}) = (n/(n+m)) * mean(x_n) + (m/(n+m)) * mean(x_m)
+        var(x_{m+n}) = ((n-1)/(n+m-1)) * var(x_n) + ((m-1)/(n+m-1)) * var(x_m)
+
+        :return: mean, std. Two 1D numpy arrays (of size 3)
+        """
+        # Read from the cache if it exists
+        cache_dir = ".cache/"
+        cache_file = join(cache_dir, "h36m_img_stats")
+        if isfile(cache_file):
+            print("loading h36m image color stats from cache file: " + cache_file)
+            return pickle.load(open(cache_file, "rb"))
+
+        # Stats to keep track of
+        mean = np.zeros(3)
+        var = np.zeros(3)
+        total_pix = 0
+
+        # Iterate through every image, adding to the stats
+        file_num = 0
+        tot_files = len(os.listdir(self.dataset_img_path))
+        for subject_dir in os.listdir(self.dataset_img_path):
+            abs_subject_dir = os.path.join(self.dataset_img_path, subject_dir)
+            for action_dir in os.listdir(abs_subject_dir):
+                abs_action_dir = os.path.join(abs_subject_dir, action_dir)
+                for cam_dir in os.listdir(abs_action_dir):
+                    abs_cam_dir = os.path.join(abs_action_dir, cam_dir)
+                    for img_filename in os.listdir(abs_cam_dir):
+
+                        # Image stats
+                        abs_img_filename = os.path.join(abs_cam_dir, img_filename)
+                        img = scipy.misc.imread(abs_img_filename, mode='RGB')
+                        img_mean = np.mean(img, axis=(0,1))
+                        img_var = np.std(img, axis=(0,1)) ** 2
+                        img_pixels = img.shape[0] * img.shape[1]
+
+                        # Running stats
+                        new_total_pix = total_pix + img_pixels
+                        mean = (img_pixels/new_total_pix) * img_mean + (total_pix/new_total_pix) * mean
+                        var = ((img_pixels-1)/(new_total_pix-1)) * img_var + ((total_pix-1)/(new_total_pix-1)) * var
+
+                        # Print out something just to let ourselves know how far we are
+                        file_num += 1
+                        if file_num % 100 == 0:
+                            print("{a}/{b}".format(a=file_num, b=tot_files))
+
+        # Compute std from var
+        std = np.sqrt(var)
+
+        # Cache the results and return them
+        print("finished computing h36m image color stats, caching to file: " + cache_file)
+        if not isdir(cache_dir):
+            mkdir_p(cache_dir)
+        stats = (mean, std)
+        pickle.dump(stats, open(cache_file, "wb"))
+
+        return stats
 
 
 
@@ -145,8 +236,8 @@ class Human36mDataset(Dataset):
         :return: train_poses, train_meta, val_poses, val_meta
         """
         # Load 3d data
-        rtrain_set = data_utils.load_data(dataset_path, data_utils.TRAIN_SUBJECTS, ALL_ACTIONS, dim=3)
-        rval_set = data_utils.load_data(dataset_path, data_utils.TEST_SUBJECTS, ALL_ACTIONS, dim=3)
+        rtrain_set = data_utils.load_data(dataset_path, data_utils.TRAIN_SUBJECTS, self.actions, dim=3)
+        rval_set = data_utils.load_data(dataset_path, data_utils.TEST_SUBJECTS, self.actions, dim=3)
 
         # Convert into friendly indexed training and test set
         train_set, train_set_meta = self._flatten_poses_set(rtrain_set)
@@ -179,6 +270,36 @@ class Human36mDataset(Dataset):
 
 
 
+    def _compute_video_frame_sets(self):
+        """
+        Assumes that self.pose and self.pose_meta have been populated.
+        This will compute a list that we call 'video info'. Each item is 1D numpy arrays, each of which constitutes a
+        set of indices corresponding to a video.
+
+        :return: video info, a list of 1D numpy arrays, each a sequence of indices (into the dataset) for a single video
+        """
+        # First use a map and the meta data to compute sequences of poses that constitute a video
+        # video_id is the same for all frames in a video and unique per video
+        pose_sequences = defaultdict(list)
+        for i in range(len(self.pose)):
+            video_id = (self.pose_meta[i]["subject_number"], self.pose_meta[i]["sequence_id"])
+            pose_sequences[video_id].append(i)
+
+        # Now convert the sequences in poses to sequences in the dataset (4 consecutive items from the dataset is the
+        # same frame from multiple angles). (Note we don't care about the keys really, they were just for collating)
+        video_sequences = []
+        for key in pose_sequences:
+            pose_seq = pose_sequences[key]
+            pose_seq = np.array(pose_seq) * 4.0
+            video_sequences.append(pose_seq)
+            video_sequences.append(pose_seq + 1.0)
+            video_sequences.append(pose_seq + 2.0)
+            video_sequences.append(pose_seq + 3.0)
+
+        return video_sequences
+
+
+
     def _flattened_train_cameras(self):
         """
         Return a 2D list, where the ith item is a list of cameras to use with self.pose[i].
@@ -192,13 +313,6 @@ class Human36mDataset(Dataset):
                 cams.append(self.train_cams[(subject, cam_indx)])
             camss.append(cams)
         return camss
-
-
-
-    def _compute_norm_stats_imgs(self):
-        # TODO: actually implment this
-        # TODO: need to be able to actually override this, so that we can normalize in the same way MPII is
-        return [0.0], [1.0]
 
 
 
@@ -387,6 +501,12 @@ class Human36mDataset(Dataset):
         4. Subsample pose data, to only consider the dimensions that we really want to use
         5. Normalizes the 2D and 3D poses (either instance normalization, or, according to dataset statistics)
         6. Perform joint dropping/masking
+
+        7. Loading the correct image from the dataset directory
+        8. Normalize the image into something to input to a stacked hourglass network (shape of 256x256)
+        9. Computing the ground truth for the output heatmaps for the stacked hourglass
+
+        10. Store all of the meta data that could be required for each example (such as means and std's for de-normalization)
         
         :param index: What index we want to get from the dataset, in the range [0, len(dataset)]
         :return: Returns the tuple (img, pos_in_img, 2d_pose, 3d_pose, meta), which are as follows:
@@ -402,14 +522,15 @@ class Human36mDataset(Dataset):
 
         # Step 1, index into arrays
         # Get the image, camera and pose (in camera coordinates)
-        img = None # todo: self._load_image_from_filename(self.imgs[frame_number])
         subject = self.pose_meta[frame_number]["subject_number"]
         cam = self.cams[(subject,camera_number)]
         pose = self.pose[frame_number]
-        pose_in_img = None # todo: work out how to do this
         
         # Step 2, apply the (random) orthogonal transform
-        Q = np.eye(3) if not self.orthogonal_data_augmentation else self.rand_orthogonal_transform_matrix()
+        Q = np.eye(3)
+        pr = random.random()
+        if pr < self.orthogonal_data_augmentation_prob:
+            Q = self.rand_orthogonal_transform_matrix()
         augmented_pose = self.apply_orthogonal_transform_3d(pose, Q)
 
         # Step 3, project the pose (this transforms the pose into camera coords and then projects)
@@ -432,7 +553,40 @@ class Human36mDataset(Dataset):
             normalized_pose_2d *= np.expand_dims(joint_mask, axis=1)
             normalized_pose_2d = normalized_pose_2d.flatten()
 
-        # Store any meta data
+        img_for_hg_input, target_heatmap = None, None
+        if self.load_image_data:
+            # Step 7, load the correct image from the dataset
+            # pose_meta[i]["sequence_id"] is something like 'smoking 1.h5', and we want 'smoking 1'
+            # The camera name is the 7th parameter in cam, out of 7
+            action = self.pose_meta[frame_number]["sequence_id"].split(".")[0]
+            camera_name = cam[6]
+            filename = "{s}/{a}/{c}/{f}.jpg".format(s=subject, a=action, c=camera_name, f=frame_number)
+            full_filename = os.path.join(self.dataset_img_path, filename)
+            numpy_img = scipy.misc.imread(full_filename, mode='RGB').astype(np.float)
+
+            # Step 8, color normalize, and squeeze the image into something to be used by the stacked hourglass
+            # The cropping subroutines allow us to specify a center and scale (so pick those to keep the whole image)
+            height, width, channels = numpy_img.shape
+            center = [height // 2, width // 2]
+            scale = max(*center) / self.hg_resolution
+            in_res = [self.hg_in_res, self.hg_in_res]
+            img_for_hg_input = hg_transforms.crop_numpy(numpy_img, center, scale, in_res, rot=0)
+            img_for_hg_input = data_utils.normalize(img_for_hg_input, self.img_mean, self.img_std)
+
+            # Convert the image to a PyTorch tensor, and transpose shape from (H,W,C) to (C,H,W)
+            img_for_hg_input = torch.from_numpy(np.transpose(img_for_hg_input, (2, 0, 1))).float()
+
+            # Step 9, compute the 2D pose ground truth in the normalized image, and, compute the target heatmap
+            target_2d_pts = np.reshape(augmented_pose_2d.clone(), [-1,2])
+            out_res = [self.hg_out_res, self.hg_out_res]
+            target_heatmap = torch.zeros(self.num_joints_pred_2d, self.hg_out_res, self.hg_out_res)
+            for i in range(self.num_joints_pred_2d):
+                target_2d_pts[i] = hg_transforms.transform(target_2d_pts[i] + 1, center, scale, out_res, rot=r)
+                target_2d_pt = torch.from_numpy(target_2d_pts[i])
+                target_heatmap[i] = draw_labelmap(target[i], target_2d_pt - 1, 1.0, type="Gaussian")
+            target_2d_pts = torch.from_numpy(target_2d_pts)
+
+        # Step 10, store any meta data
         meta = {
             'index': index,
             'frame_number': frame_number,
@@ -446,6 +600,15 @@ class Human36mDataset(Dataset):
             '2d_indx_ignored': self.pose_2d_indx_to_ignore,
             '3d_indx_ignored': self.pose_3d_indx_to_ignore,
         }
+        if self.load_image_data:
+            # data related to the image
+            meta.update({
+                "img_filename": full_filename,
+                "img_center": center,
+                "img_scale": scale,
+                "2D_pose_orig_img": augmented_pose_2d, # final computation is at step 4
+                "scaled_target_2D_pose": target_2d_pts,
+            })
         if self.dataset_normalization:
             # to "unNormalize" in datasrt normalization
             meta.update({
@@ -464,7 +627,18 @@ class Human36mDataset(Dataset):
             })
 
         # Return the tuple
-        return (img, pose_in_img, torch.Tensor(normalized_pose_2d), torch.Tensor(normalized_pose), meta)
+        return (img_for_hg_input, target_heatmap, torch.Tensor(normalized_pose_2d), torch.Tensor(normalized_pose), meta)
+
+
+
+    def get_video_frames(self, index):
+        """
+        Gets the 'index'th video, as a set of indices into the dataset
+
+        :param index: Index into the dataset with respect to videos (rath frames)
+        :return: An ordered numpy constay of indices into the dataset, ordered constituting a video
+        """
+        return self.video_sequences[index]
 
 
 
@@ -474,4 +648,11 @@ class Human36mDataset(Dataset):
         """
         return len(self.pose) * 4.0
 
+
+
+    def video_len(self):
+        """
+        Same as __len__ but with respect to videos rather than frames.
+        """
+        return len(self.video_sequences)
 

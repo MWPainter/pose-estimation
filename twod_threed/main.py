@@ -331,7 +331,7 @@ def _make_torch_data_loaders(opt, actions):
     Load the PyTorch datasets and data loaders.
     """
     train_dataset = Human36M(actions=actions, data_path=opt.data_dir,
-                             orthogonal_data_augmentation=opt.orthogonal_data_augmentation,
+                             orthogonal_data_augmentation_prob=opt.orthogonal_data_augmentation_prob,
                              z_rotations_only=opt.z_rotations_only, dataset_normalization=opt.dataset_normalization,
                              flip_prob=opt.flip_prob, drop_joint_prob=opt.drop_joint_prob)
     test_dataset = Human36M(actions=actions, data_path=opt.data_dir,
@@ -690,28 +690,8 @@ def _test(test_loader, model, criterion, dataset_normalization, procrustes=False
 
         losses.update(loss.data[0], inputs.size(0))
 
-        tars = targets
-
-        # calculate erruracy
-        targets_unnorm = data_utils.unNormalizeData(tars.data.cpu().numpy(), meta, dataset_normalization)
-        outputs_unnorm = data_utils.unNormalizeData(outputs.data.cpu().numpy(), meta, dataset_normalization)
-
-        # Meta contains PyTorch tensors, so targets_unnorm and outputs_unnorm are PyTorch tensors
-        targets_use = targets_unnorm.numpy()
-        outputs_use = outputs_unnorm.numpy()
-
-        if procrustes:
-            for ba in range(inps.size(0)):
-                gt = targets_use[ba].reshape(-1, 3)
-                out = outputs_use[ba].reshape(-1, 3)
-                _, Z, T, b, c = get_transformation(gt, out, True)
-                out = (b * out.dot(T)) + c
-                outputs_use[ba, :] = out.reshape(1, 51)
-
-        sqerr = (outputs_use - targets_use) ** 2
-        sqerr = np.reshape(sqerr, (sqerr.shape[0], 17, 3))
-        distance = np.sqrt(np.sum(sqerr, axis=2))
-        all_dist.append(distance)
+        # Calculate the errors in the unormalized space
+        all_dist.append(compute_3d_pose_error_distances(outputs, targets, meta, dataset_normalization, procrustes))
 
         # update summary
         if (i + 1) % 100 == 0:

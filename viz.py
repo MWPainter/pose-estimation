@@ -18,15 +18,18 @@ from stacked_hourglass.pose.utils.transforms import color_denormalize
 from twod_threed.src.viz import viz_2d_pose, viz_3d_pose
 from twod_threed.src.datasets.human36m import get_3d_key_from_2d_key
 from twod_threed.src.model import LinearModel
+from stitched.viz import visualize_video as stitched_visualize_video
 
 
 # Absolute imports
 import numpy as np
 import torch
+import random
 from options import Options
 import os
 import scipy
 import sys
+
 
 
 
@@ -64,10 +67,10 @@ def visualize_2d_overlay_3d_pred(options):
         if filename.endswith(".jpg") or filename.endswith(".png"):
             abs_filename = os.path.join(img_dir, filename)
             img = scipy.misc.imread(abs_filename)
-            if not filename in twod_pose_preds:
+            if not abs_filename in twod_pose_preds:
                 continue
             twod_overlay = viz_2d_overlay(img, twod_pose_preds[filename])
-            threed_pose_viz = viz_3d_pose(threed_pose_preds[filename].numpy(), "data/2d3d_h36m")
+            threed_pose_viz = viz_3d_pose(threed_pose_preds[filename].numpy())
             final_img = _pack_images([twod_overlay, threed_pose_viz])
             scipy.misc.imsave(os.path.join(output_dir, filename), final_img)
 
@@ -148,7 +151,7 @@ def viz_orthog_transform(options):
         mkdir_p(options.output_dir)
 
     # Make the dataset object, and load the model, and put it in eval mode
-    dataset = Human36mDataset(dataset_path=data_dir, orthogonal_data_augmentation=False,
+    dataset = Human36mDataset(dataset_path=data_dir, orthogonal_data_augmentation_prob=0.0,
                               z_rotations_only=options.z_rotations_only, dataset_normalization=dataset_normalize)
     model = LinearModel(dataset_normalized_input=dataset_normalize).cuda()
     ckpt = torch.load(model_checkpoint_file)
@@ -173,15 +176,14 @@ def viz_orthog_transform(options):
 
         # Visualize in a hstack
         pose_2d_gt_img = viz_2d_pose(pose_2d_gt_unnorm)
-        # pose_3d_gt_img = viz_3d_pose(pose_3d_gt_unnorm)
-        print(meta['3d_pose_camera_coords'].shape)
-        pose_3d_gt_img = viz_3d_pose(meta['3d_pose_camera_coords'])
-        pose_3d_pred_img = viz_3d_pose(meta['3d_pose_camera_coords'])
-        # pose_3d_pred_img = viz_3d_pose(pose_3d_pred_unnorm)
+        pose_3d_gt_img = viz_3d_pose(pose_3d_gt_unnorm)
+        # pose_3d_gt_img = viz_3d_pose(meta['3d_pose_camera_coords'])
+        # pose_3d_pred_img = viz_3d_pose(meta['3d_pose_camera_coords'])
+        pose_3d_pred_img = viz_3d_pose(pose_3d_pred_unnorm)
 
 
         # If it's the first iteration, now switch to using the orthogonal data augmentation
-        if i == 0: dataset.orthogonal_data_augmentation = True
+        if i == 0: dataset.orthogonal_data_augmentation_prob = 1.0
 
         # Append hstacked image to vstack
         vstack.append(_pack_images([pose_2d_gt_img, pose_3d_gt_img, pose_3d_pred_img]))
@@ -213,7 +215,37 @@ def visualize_2d_overlay_3d_gt_3d_pred(options):
 
     :param options: Options for the visualizations, defined in options.py. (Including defaults).
     """
-    raise NotImplementedError()
+    # Load the predictions and unpack options
+    img_dir = options.img_dir
+    twod_pose_preds = torch.load(options.twod_pose_estimations)
+    threed_pose_ground_truths = torch.load(options.threed_pose_ground_truths)
+    threed_pose_preds = torch.load(options.threed_pose_estimations)
+    output_dir = options.output_dir
+
+    # Make dir for output if it doesnt exist
+    if not isdir(output_dir):
+        mkdir_p(output_dir)
+
+    i = 0
+    total = len(twod_pose_preds)
+
+    # Produce a visualization for each input image, outputting to 'output_dir' with the same image name as input
+    for filename in os.listdir(img_dir):
+        if filename.endswith(".jpg") or filename.endswith(".png"):
+            abs_filename = os.path.join(img_dir, filename)
+            img = scipy.misc.imread(abs_filename)
+            if not abs_filename in twod_pose_preds:
+                continue
+            twod_overlay = viz_2d_overlay(img, twod_pose_preds[filename])
+            threed_gt_viz = viz_3d_pose(threed_pose_ground_truths[filename].numpy())
+            threed_pose_viz = viz_3d_pose(threed_pose_preds[filename].numpy())
+            final_img = _pack_images([twod_overlay, threed_gt_viz, threed_pose_viz])
+            scipy.misc.imsave(os.path.join(output_dir, filename), final_img)
+
+            # progress
+            if i % 100 == 0:
+                print("Visualized " + str(i) + " out of " + str(total))
+            i += 1
 
 
 
@@ -232,7 +264,6 @@ def visualize_2d_pred_3d_gt_3d_pred(options):
     """
     # Unpack options
     twod_pose_ground_truths = torch.load(options.twod_pose_ground_truths)
-    threed_pose_ground_truths = torch.load(options.threed_pose_ground_truths)
     threed_pose_preds = torch.load(options.threed_pose_estimations)
     output_dir = options.output_dir
 
@@ -247,9 +278,9 @@ def visualize_2d_pred_3d_gt_3d_pred(options):
     for k2d in twod_pose_ground_truths:
         k3d = get_3d_key_from_2d_key(k2d)
         for t in range(min(len(twod_pose_ground_truths[k2d]), 100)):
-            twod_gt_viz = viz_2d_pose(twod_pose_ground_truths[k2d][t], options.data_dir)
-            threed_gt_viz = viz_3d_pose(threed_pose_ground_truths[k3d][t], options.data_dir)
-            threed_pred_viz = viz_3d_pose(threed_pose_preds[k2d][t].numpy(), options.data_dir)
+            twod_gt_viz = viz_2d_pose(twod_pose_ground_truths[k2d][t])
+            threed_gt_viz = viz_3d_pose(threed_pose_ground_truths[k3d][t])
+            threed_pred_viz = viz_3d_pose(threed_pose_preds[k2d][t].numpy())
 
             final_img = _pack_images([twod_gt_viz, threed_gt_viz, threed_pred_viz])
             scipy.misc.imsave(os.path.join(output_dir, str(k2d)+"_"+str(t)+".jpg"), final_img)
@@ -478,6 +509,15 @@ def _pack_images_col(img_list):
 
 
 
+def viz_video(options):
+    """
+    TODO
+    """
+    stitched_visualize_video(options)
+
+
+
+
 
 
 if __name__ == "__main__":
@@ -510,6 +550,8 @@ if __name__ == "__main__":
         visualize_saliency_and_prob_maps(options, True)
     elif script == "orthog_augmentation":
         viz_orthog_transform(options)
+    elif script == "video":
+        viz_video(options)
 
 
 

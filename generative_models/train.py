@@ -122,6 +122,9 @@ def _update_op(model, optimizer, minibatch, iter, args):
     :param args: The command line arguments (opt parser) passed in through the command line.
     :return: A dictionary from strings to PyTorch scalar Variables used for TensorBoard summaries.
     """
+    # Switch model to training mode
+    model.train()
+
     # Unpack
     n_discr = args.num_discriminator_steps_per_generator_step + 1
     discriminator_optimizer, generator_optimizer = optimizer

@@ -11,6 +11,7 @@ from utils import camera_utils as cameras
 import h5py
 import glob
 import copy
+import torch
 
 """
 FILE ORIGINALLY PART OF THE 3D BASELINE CODE (twod_threed library)
@@ -291,7 +292,19 @@ def normalize_pose(pose, data_mean, data_std):
     # data = pose[:, dim_to_use]
     # mu = data_mean[dim_to_use]
     # stddev = data_std[dim_to_use]
-    return np.divide((pose - data_mean), data_std)
+    return normalize(pose, data_mean, data_std)
+
+
+def normalize(data, data_mean, data_std):
+    """
+    Normalize some data
+
+    data shape = (*, K)
+    data_mean shape = (K,)
+    data_std shape = (K,)
+    so that broadcasting happens correctly
+    """
+    return np.divide((data - data_mean), data_std)
 
 
 def define_actions(action):
@@ -508,6 +521,19 @@ def zero_hip_joint(pose, num_joints):
     return np.squeeze(zeroed_pose_batch), np.squeeze(zeroed_root_pos_batch)
 
 
+def zero_hip_joints_torch(poses, num_joints):
+    """
+    Torch version of zero_hip_joints
+    """
+    batch_size = poses.size(0)
+    poses = poses.view(batch_size, num_joints, -1)
+
+    root_positions = poses[:, 0]
+    poses = poses - root_positions
+
+    return poses.view(batch_size, -1), root_positions
+
+
 def std_distance(pose, num_joints):
     """
     Given a set of poses, with shape (n, k*d), where n is the batch size, k is the number of joints and d is the
@@ -527,11 +553,22 @@ def std_distance(pose, num_joints):
 
 
 
+def std_distance_torch(poses, num_joints):
+    """
+    Same as "std_distance", but implemented in torch, and for a batch
+    """
+    batch_size = poses.size(0)
+    poses = poses.view(batch_size, num_joints, -1)
+    norms = torch.sqrt(torch.sum(poses ** 2, 2))
+    return torch.std(norms, 1)
+
+
+
 def std_distance_torch_3d(poses):
     """
     Same as "std_distance", but implemented in torch, for 3D poses only, and for a batch
     """
-    batch_size = pose.size(0)
+    batch_size = poses.size(0)
     poses = poses.view(batch_size, -1, 3)
     norms = torch.sqrt(torch.sum(poses ** 2, 2))
     return torch.std(norms, 1)
@@ -674,3 +711,53 @@ def normalize_single_pose(pose_camera_coords, num_joints, dataset_normalization,
         if not is_2d:
             poses, _ = postprocess_3d(poses)
         return normalize_data(poses, pose_mean, pose_std)[0], None, None
+
+
+
+def normalize_poses(poses, num_joints, dataset_normalization, pose_mean=None, pose_std=None, is_2d=False):
+    """
+    Batch version of normalize_single_pose, implemented in torch
+    """
+    if not dataset_normalization:
+        poses_zeroed_hip, hip_root_positions = zero_hip_joints(poses, num_joints)
+        joint_dist_stds = std_distance_torch(poses_zeroed_hip, num_joints)
+        return poses_zeroed_hip / joint_dist_stds.view(-1,1), hip_root_positions, joint_dist_stds
+
+    else:
+        if not is_2d:
+            poses, _ = zero_hip_joints_torch(poses)
+        return (poses - pose_mean) / pose_std, None, None
+
+
+def compute_3d_pose_error_distances(outputs, tars, meta, dataset_normalization=False, procrustes=False):
+    """
+    Given PyTorch variables, outputs and tars, the outputs and targets for the 3D baseline network respectively.
+    Compute the distances between all of them, in the unormalized space
+
+    :param outputs: Output variable from the network
+    :param tars: Target variable for the network
+    :param meta: Meta data, containing the statistics information required to "unnormalize"
+    :param dataset_normalization: If we are using istance or dataset statistics to normalize
+    :param procrustes: If we allow for a procrustes transform in the error analysis
+    :return: A PyTorch tensor of shape (batch_size, num_joints) of distances between the outputs and targets
+    """
+    # calculate erruracy
+    targets_unnorm = data_utils.unNormalizeData(tars.data.cpu().numpy(), meta, dataset_normalization)
+    outputs_unnorm = data_utils.unNormalizeData(outputs.data.cpu().numpy(), meta, dataset_normalization)
+
+    # Meta contains PyTorch tensors, so targets_unnorm and outputs_unnorm are PyTorch tensors
+    targets_use = targets_unnorm.numpy()
+    outputs_use = outputs_unnorm.numpy()
+
+    if procrustes:
+        for ba in range(inps.size(0)):
+            gt = targets_use[ba].reshape(-1, 3)
+            out = outputs_use[ba].reshape(-1, 3)
+            _, Z, T, b, c = get_transformation(gt, out, True)
+            out = (b * out.dot(T)) + c
+            outputs_use[ba, :] = out.reshape(1, 51)
+
+    sqerr = (outputs_use - targets_use) ** 2
+    sqerr = np.reshape(sqerr, (sqerr.shape[0], 17, 3))
+    distance = np.sqrt(np.sum(sqerr, axis=2))
+    return distance

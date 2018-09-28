@@ -186,7 +186,7 @@ class _Hourglass(nn.Module):
         """
         layers = []
         for i in range(0, num_blocks):
-            layers.append(_ResBlock(channels*block.expansion, channels, use_layer_norm=self.use_layer_norm, width=width,
+            layers.append(_ResBlock(channels*_ResBlock.expansion, channels, use_layer_norm=self.use_layer_norm, width=width,
                                     height=height, batch_norm_momentum=self.batch_norm_momentum,
                                     use_batch_norm_affine=self.use_batch_norm_affine))
         return nn.Sequential(*layers)
@@ -335,16 +335,16 @@ class HourglassNet(nn.Module):
         Make a residual block, used between hourglass modules at the highest resolutions.
         """
         downsample = None
-        if stride != 1 or self.inchannels != channels * block.expansion:
+        if stride != 1 or self.inchannels != channels * _ResBlock.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inchannels, channels * block.expansion,
+                nn.Conv2d(self.inchannels, channels * _ResBlock.expansion,
                           kernel_size=1, stride=stride, bias=True),
             )
 
         layers = []
         layers.append(_ResBlock(self.inchannels, channels, stride, downsample, use_layer_norm=self.use_layer_norm,
                                 width=width, height=height, batch_norm_momentum=self.batch_norm_momentum))
-        self.inchannels = channels * block.expansion
+        self.inchannels = channels * _ResBlock.expansion
         for i in range(1, blocks):
             layers.append(_ResBlock(self.inchannels, channels, use_layer_norm=self.use_layer_norm, width=width, height=height,
                                     batch_norm_momentum=self.batch_norm_momentum))

@@ -152,8 +152,15 @@ def transform_preds(coords, center, scale, res):
         coords[p, 0:2] = to_torch(transform(coords[p, 0:2], center, scale, res, 1, 0))
     return coords
 
-
 def crop(img, center, scale, res, rot=0):
+    """
+    PyTorch wrapper for crop_numpy
+    """
+    img = im_to_numpy(img)
+    img = crop_numpy(img, center, scale, res, rot)
+    return im_to_torch(img)
+
+def crop_numpy(img, center, scale, res, rot=0):
     """
     Performs standard data augmentation to an image 'img'.
 
@@ -164,8 +171,6 @@ def crop(img, center, scale, res, rot=0):
     :param rot: The amount of rotation to apply to the input
     :return: An (possibly augmented) image, to be used for input to the stacked hourglass network.
     """
-    img = im_to_numpy(img)
-
     # Preprocessing for efficient cropping
     ht, wd = img.shape[0], img.shape[1]
     sf = scale * 200.0 / res[0]
@@ -212,7 +217,7 @@ def crop(img, center, scale, res, rot=0):
         new_img = scipy.misc.imrotate(new_img, rot)
         new_img = new_img[pad:-pad, pad:-pad]
 
-    new_img = im_to_torch(scipy.misc.imresize(new_img, res))
+    new_img = scipy.misc.imresize(new_img, res)
     return new_img
 
 

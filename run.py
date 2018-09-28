@@ -3,7 +3,8 @@ from __future__ import print_function, absolute_import, division
 
 # Relative imports
 from stacked_hourglass import run as run_hourglass_mpii
-from stitched import run as run_stitched_mpii
+from stitched import run_mpii as run_stitched_mpii
+from stitched import run_h36m as run_stitched_h36m
 from twod_threed import run as run_twod_to_threed_h36m
 
 # Absolute imports
@@ -52,6 +53,14 @@ def stitched_mpii(options):
 
 
 
+def stitched_h36m(options):
+    """
+    TODO
+    """
+    run_stitched_h36m(options)
+
+
+
 
 
 
@@ -71,3 +80,5 @@ if __name__ == "__main__":
         twod_to_threed_h36m(options)
     elif script == "stitched_mpii":
         stitched_mpii(options)
+    elif script == "stitched_h36m":
+        stitched_h36m(options)

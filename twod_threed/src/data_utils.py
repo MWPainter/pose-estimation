@@ -1,8 +1,3 @@
-############
-# Not Used #
-############
-
-
 #
 # """Utility functions for dealing with human3.6m data."""
 #

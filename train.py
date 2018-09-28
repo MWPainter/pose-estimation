@@ -5,6 +5,7 @@ from __future__ import print_function, absolute_import, division
 from generative_models import train_3d_pose_gan as threed_pose_gan_main
 from twod_threed import main as twod_threed_h36m_main
 from stacked_hourglass import mpii_main as hourglass_mpii_main
+from stitched.train import train_stitched_fine_tune
 
 # Absolute imports
 import sys
@@ -55,6 +56,10 @@ def train_3d_pose_gan(options):
     threed_pose_gan_main(options)
 
 
+# This is imported directls
+# def train_stitched_fine_tune(options):
+#     pass
+
 
 if __name__ == "__main__":
     # Check that a script was specified
@@ -78,7 +83,7 @@ if __name__ == "__main__":
         train_twod_to_threed_h36m(options)
     elif script == "3d_pose_gan":
         train_3d_pose_gan(options)
-    elif script == "stitched":
-        raise NotImplementedError()
+    elif script == "stitched_fine_tune":
+        train_stitched_fine_tune(options)
     else:
         raise NotImplementedError()

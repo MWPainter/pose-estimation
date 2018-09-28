@@ -66,6 +66,22 @@ training_defaults = \
                 "train_batch_size": 6,
                 "test_batch_size": 6,
             },
+
+        # for train/run
+        "stitched_fine_tune":
+        {
+            # General options
+            "data_dir": "/data/h36m_pose",  # "/var/storage/shared/pnrsy/mipain/Human3.6M/h36m_h5",#"/data/h36m_pose",
+            "checkpoint_dir": "model_checkpoints",
+            "output_dir": "",
+            "tb_dir": "tb_logs/",
+
+            # Training options
+            "epochs": 100,
+            "lr": 1.0e-5,
+            "train_batch_size": 6,
+            "test_batch_size": 6,
+        },
         "":
             {
                 # General options
@@ -140,7 +156,7 @@ class Options:
         # ===============================================================
         self._parser.add_argument('--lr', type=float, default=t_defaults["lr"])
         self._parser.add_argument('--lr_decay', type=int, default=100000, help='# steps of lr decay')
-        self._parser.add_argument('--lr_gamma', type=float, default=1.0)
+        self._parser.add_argument('--lr_gamma', type=float, default=0.999)
         self._parser.add_argument('--epochs', type=int, default=t_defaults["epochs"])
         self._parser.add_argument('--dropout', type=float, default=0.5,
                                  help='dropout probability, 1.0 to make no dropout')
@@ -287,7 +303,7 @@ class Options:
         self._parser.add_argument('--discr_2d_lr', type=float, default=-1.0, help='Option to override the learning rate for the 2D pose discriminator (cycle gan)')
         self._parser.add_argument('--discr_3d_lr', type=float, default=-1.0, help='Option to override the learning rate for the 3D pose discriminator (cycle gan)')
 
-        self._parser.add_argument('--orthogonal_data_augmentation', action='store_true', help="If we would like to perform the orthogonal pose augmentation.")
+        self._parser.add_argument('--orthogonal_data_augmentation_prob', type=float, default=0.0, help="If we would like to perform the orthogonal pose augmentation, set the probability of performing the augmentation on every sample from the dataset.")
         self._parser.add_argument('--z_rotations_only', action='store_true', help='If the orthogonal data augmentation should only rotate about the z axis.')
         self._parser.add_argument('--dataset_normalization', action='store_true', help="If we want to revert to using dataset statistics for normalizing the input to the network, rather than normalizing per instance")
         self._parser.add_argument('--flip_prob', type=float, default=0.5, help="In the orthogonal data augmentation, the probability of performing a flip/reflection.")

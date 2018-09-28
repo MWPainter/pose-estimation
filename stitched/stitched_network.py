@@ -11,7 +11,7 @@ def _identity(x):
 
 class StitchedNetwork(torch.nn.Module):
     def __init__(self, hg_stacks, hg_blocks, hg_num_classes, hg_batch_norm_momentum, hg_use_layer_norm, hg_mean, hg_std,
-                 width, height, linear_size=1024, num_stage=2, p_dropout=0.5, input_size=32, output_size=48,
+                 width, height, linear_size=1024, num_stage=2, p_dropout=0.5, input_size=32, output_size=51,
                  transformer_fn=_identity, dataset_normlization=False):
         """
         Initialize the stitched network
@@ -48,7 +48,7 @@ class StitchedNetwork(torch.nn.Module):
                                               width=width, height=height)
         self.soft_argmax = SoftArgmax2D(window_fn="Parzen")
         self.joint_format_transform = transformer_fn
-        self.twod_threed = Transform2D3DNet(linear_size, num_stage, p_dropout, input_size, output_size)
+        self.twod_threed = Transform2D3DNet(linear_size, num_stage, p_dropout, dataset_normlization, input_size, output_size)
 
 
     def load(self, file1, file2=None):
@@ -77,27 +77,55 @@ class StitchedNetwork(torch.nn.Module):
         return poses
 
 
-    def forward(self, x, centers, scales):
+    def forward(self, x, meta):
         """
-        The forward pass. Just apply each of the subnetwork and softargmax in the correct order
+        The forward pass. Just apply each of the subnetwork and softargmax in the correct order.
+
+        Meta must be a dictionary of
+
         :param x: The input, an RGB image
-        :param centers: The centers of the persons bounding boxes (to get final pose predictions from network output)
-        :param scales: The scale of the persons bounding boxes (to get final pose predictions from network output)
+        :param meta: A dictionary containing all of the data required for data normalization/denormalization.
+            It must be a dictionary of the following form:
+                'center': bounding box centers (that the images were cropped around)
+                'scale': a scaling that was applied to the image before
+            If using data normalization, we also need the following values:
+                '2d_mean': The mean joint values in 2D from the dataset
+                '2d_std': The std dev of joint values in 2D from the dataset
         :return: The outputs from the pipeline. The 2D predictions,
             the 2D predictions transformed into another coordinate system (i.e. MPII -> H3.6m)
             and the 3D predictions
         """
+        # Unpack meta
+        centers = meta['center']
+        scales = meta['scale']
+        mean_2d = meta['2d_mean'] if '2d_mean' in meta else None
+        std_2d = meta['2d_std'] if '2d_std' in meta else None
+
+        # 2D prediction
         heatmaps = self.stacked_hourglass(x)
         final_heatmap = heatmaps[-1]
         twod_preds = self.soft_argmax(final_heatmap)
-        twod_preds_out = final_preds_post_processing(final_heatmap, twod_preds, centers, scales, [64, 64], True)
-        twod_preds_transformed = self.joint_format_transform(twod_preds)
 
-        twod_preds_hip_zeroed = self.move_hip_joint_to_center(twod_preds_transformed)
-        # todo: "normalize" - rescale the input to the twod -> threed network correctly...
-        threed_preds = self.twod_threed(twod_preds_hip_zeroed)
-        # todo: "unnormalize"
-        return twod_preds_out, threed_preds
+        # Get the 2D pose in the image
+        twod_preds_out = final_preds_post_processing(final_heatmap, twod_preds, centers, scales, [64, 64], True)
+
+        # Compute the input to the 3D baseline network (normalize accordingly)
+        # This include re-ordering the joints
+        # If using dataset statistics for normalization, we should re-scale the pose as if it were 1000x1002 as in h36m
+        # Instance normalization it will not matter the scale, so we can ignore this. (We could also safely multiply by
+        # any constant, but that would be confusing).
+        twod_preds = self.joint_format_transform(twod_preds)
+        if self.baseline_dataset_normalization:
+            twod_preds *= 1000.0 / 64.0
+        normalized_twod_preds = data_utils.normalize_poses(twod_preds, 16, self.baseline_dataset_normalization,
+                                                           pose_mean=mean_2d, pose_std=std_2d, is_2d=True)
+
+        # Run through the 3D baseline network
+        threed_preds = self.twod_threed(normalized_twod_preds)
+
+        # Return the heatmaps (for training 2D predictions), 2d predictions (image coords) and normalized 3D prediction
+        # Loss uses normalized 3D output, so, we defer de-normalizing 3D poses to later
+        return heatmaps, twod_preds_out, threed_preds
 
 
 
