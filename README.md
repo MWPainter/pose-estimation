@@ -1,4 +1,4 @@
-# CVPR2019 Project
+# Pose Estimation - Microsoft Project
 
 ## Repo Structure
 
